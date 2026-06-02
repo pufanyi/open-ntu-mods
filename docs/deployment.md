@@ -3,8 +3,14 @@
 ## Railway PostgreSQL
 
 1. Create a Railway PostgreSQL service.
-2. Copy its internal `DATABASE_URL` into the app service environment.
+2. Reference its internal `DATABASE_URL` in the backend app service environment.
+   This URL is for Railway services, not for local terminal access.
 3. Keep automated backups enabled and periodically test restore into a staging database.
+
+For local commands such as `sqlx migrate run`, use the PostgreSQL service's
+public TCP connection string from Railway's Connect tab. Do not use the backend
+app's `*.up.railway.app` HTTP domain as `DATABASE_URL`; SQLx will fail with
+Postgres protocol/TLS errors such as `unexpected response from SSLRequest`.
 
 ## Railway App Service
 
@@ -20,6 +26,7 @@ SESSION_SECRET=replace-with-long-random-secret
 COOKIE_SECURE=true
 REQUIRE_ORIGIN_SECRET=true
 ORIGIN_SECRET=replace-with-long-random-secret
+RUN_MIGRATIONS_ON_STARTUP=true
 MICROSOFT_CLIENT_ID=...
 MICROSOFT_CLIENT_SECRET=...
 MICROSOFT_ISSUER=https://login.microsoftonline.com/organizations/v2.0
@@ -33,7 +40,17 @@ Railway provides `PORT`; the backend binds to `0.0.0.0:$PORT`.
 
 ## Migrations
 
-Run migrations before or during release:
+For the MVP Railway deployment, set:
+
+```env
+RUN_MIGRATIONS_ON_STARTUP=true
+```
+
+The backend will apply embedded SQLx migrations before serving traffic. This is
+the simplest path for a single-replica Railway service.
+
+Alternatively, run migrations manually before release with a PostgreSQL public
+TCP connection string:
 
 ```bash
 cd backend

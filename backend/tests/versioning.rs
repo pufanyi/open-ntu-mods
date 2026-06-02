@@ -251,6 +251,7 @@ fn test_config() -> Config {
         cookie_secure: false,
         require_origin_secret: false,
         origin_secret: "dev-origin-secret".into(),
+        run_migrations_on_startup: false,
         microsoft_client_id: None,
         microsoft_client_secret: None,
         microsoft_issuer: "https://login.microsoftonline.com/organizations/v2.0".into(),

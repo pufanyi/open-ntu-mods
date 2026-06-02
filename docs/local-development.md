@@ -17,6 +17,11 @@ cargo run
 
 The API runs on `http://localhost:3000`, serves `/openapi.json`, and serves the built frontend when `frontend/dist` exists.
 
+If you are using a throwaway database, you can set
+`RUN_MIGRATIONS_ON_STARTUP=true` in `backend/.env` and skip the manual migration
+command. Keep `DATABASE_URL` pointed at a real PostgreSQL connection string,
+not an HTTP app domain.
+
 ## Frontend
 
 ```bash
@@ -48,4 +53,3 @@ Seed data includes SC2001 Algorithm Design and Analysis, AY2024/25 Sem 1, AY2025
 7. Open history and compare versions.
 8. Login as `admin@e.ntu.edu.sg`.
 9. Use `/admin` with the commit ID to revert, or section/version IDs to restore.
-

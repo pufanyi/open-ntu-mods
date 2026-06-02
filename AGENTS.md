@@ -48,6 +48,10 @@ sqlx migrate run
 cargo run
 ```
 
+`RUN_MIGRATIONS_ON_STARTUP=true` can be used for Railway or throwaway local
+environments. Keep manual `sqlx migrate run` as the default local workflow when
+working directly against a local Postgres container.
+
 Frontend:
 
 ```bash
@@ -113,6 +117,8 @@ backend/Dockerfile
 - Do not run `wrangler deploy` from the repository root. Use
   `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
+- Set `RUN_MIGRATIONS_ON_STARTUP=true` on Railway for the MVP deployment so the
+  backend applies SQLx migrations before serving traffic.
 - Worker production variables must include `RAILWAY_ORIGIN=https://...` as a
   plain variable and `ORIGIN_SECRET` as a secret. Missing Worker variables are
   the most common cause of Cloudflare 1101 errors.

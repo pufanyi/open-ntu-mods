@@ -15,6 +15,11 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Arc::new(Config::from_env()?);
     let pool = create_pool(&config).await?;
+    if config.run_migrations_on_startup {
+        tracing::info!("running database migrations");
+        sqlx::migrate!("./migrations").run(&pool).await?;
+    }
+
     let app = build_app(AppState {
         pool,
         config: config.clone(),

@@ -9,6 +9,7 @@ pub struct Config {
     pub cookie_secure: bool,
     pub require_origin_secret: bool,
     pub origin_secret: String,
+    pub run_migrations_on_startup: bool,
     pub microsoft_client_id: Option<String>,
     pub microsoft_client_secret: Option<String>,
     pub microsoft_issuer: String,
@@ -37,6 +38,7 @@ impl Config {
             require_origin_secret: parse_bool("REQUIRE_ORIGIN_SECRET", false),
             origin_secret: env::var("ORIGIN_SECRET")
                 .unwrap_or_else(|_| "dev-origin-secret".to_string()),
+            run_migrations_on_startup: parse_bool("RUN_MIGRATIONS_ON_STARTUP", false),
             microsoft_client_id: optional_env("MICROSOFT_CLIENT_ID"),
             microsoft_client_secret: optional_env("MICROSOFT_CLIENT_SECRET"),
             microsoft_issuer: env::var("MICROSOFT_ISSUER").unwrap_or_else(|_| {

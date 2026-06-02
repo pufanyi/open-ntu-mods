@@ -29,6 +29,11 @@ pnpm --filter frontend dev
 
 Open `http://localhost:5173`, use the dev-login form, and select `verified_user`, `moderator`, or `admin` for local testing. Seed data includes demo SC2001 offerings and demo users only.
 
+For Railway deployments, set `RUN_MIGRATIONS_ON_STARTUP=true` on the backend
+service so SQLx migrations run before the app serves traffic. Local `sqlx`
+commands need a PostgreSQL TCP connection string, not the Railway app HTTP
+domain.
+
 ## Checks
 
 ```bash
@@ -47,4 +52,3 @@ cargo deny check
 Deploy PostgreSQL and the Rust app on Railway. Build with `backend/Dockerfile`; the image builds the React app and serves `frontend/dist` from the Rust backend. Put Cloudflare Workers in front of Railway, set `RAILWAY_ORIGIN` and `ORIGIN_SECRET`, and require `X-Origin-Secret` in production.
 
 See `docs/` for architecture, API, tooling, deployment, and local development details.
-
