@@ -9,14 +9,17 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{
     Json, Router,
-    http::{HeaderValue, Method, StatusCode},
+    http::{
+        HeaderName, HeaderValue, Method, StatusCode,
+        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    },
     middleware,
     response::IntoResponse,
     routing::{get, post, put},
 };
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     services::{ServeDir, ServeFile},
     timeout::TimeoutLayer,
@@ -147,7 +150,12 @@ pub fn build_app(state: AppState) -> Router {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers(Any)
+        .allow_headers([
+            ACCEPT,
+            AUTHORIZATION,
+            CONTENT_TYPE,
+            HeaderName::from_static("x-request-id"),
+        ])
         .allow_credentials(true);
 
     let static_dir = std::env::var("FRONTEND_DIST_DIR")
