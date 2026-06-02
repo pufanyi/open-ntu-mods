@@ -106,6 +106,9 @@ backend/Dockerfile
 
 - Root directory should stay at repository root because the Dockerfile needs
   `frontend/`, `package.json`, `pnpm-lock.yaml`, and Rust workspace files.
+- If `frontend/tsconfig.json` or Vite config starts depending on additional
+  root-level frontend files, make sure `backend/Dockerfile` copies those files
+  into the frontend build stage.
 - Cloudflare Worker deploys from `worker/`, not Railway.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
 
@@ -124,4 +127,3 @@ backend/Dockerfile
   optional MySQL macro support in `Cargo.lock`; this backend disables SQLx
   default features and compiles PostgreSQL only.
 - If dependency features change, re-evaluate that audit ignore.
-
