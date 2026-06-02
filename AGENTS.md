@@ -111,6 +111,8 @@ backend/Dockerfile
   into the frontend build stage.
 - Cloudflare Worker deploys from `worker/`, not Railway.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
+- Backend origin protection intentionally exempts `/health` so Railway
+  healthchecks can pass without custom headers. Do not exempt API/Auth routes.
 
 ## Auth Notes
 

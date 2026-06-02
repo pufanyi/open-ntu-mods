@@ -69,7 +69,6 @@ Roles are ranked:
 
 ## Worker and Railway
 
-The Worker proxies requests to `RAILWAY_ORIGIN`, adds `X-Origin-Secret`, and injects basic security headers. In production set `REQUIRE_ORIGIN_SECRET=true` on the backend so direct Railway requests without the secret are rejected.
+The Worker proxies requests to `RAILWAY_ORIGIN`, adds `X-Origin-Secret`, and injects basic security headers. In production set `REQUIRE_ORIGIN_SECRET=true` on the backend so direct Railway requests without the secret are rejected. `/health` is the only exception so Railway can run platform health checks.
 
 The Worker caches only public GET routes under `/api/courses`, `/api/offerings`, and `/api/sections`. It does not cache auth routes, `/api/me`, admin routes, or non-GET requests.
-

@@ -119,6 +119,10 @@ pub async fn origin_protection(
     request: Request<Body>,
     next: Next,
 ) -> Result<Response, ApiError> {
+    if request.uri().path() == "/health" {
+        return Ok(next.run(request).await);
+    }
+
     if state.config.require_origin_secret {
         let supplied = request
             .headers()
