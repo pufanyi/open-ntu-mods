@@ -1,0 +1,2021 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Open NTU Mods API",
+    "description": "Academic-year-aware NTU course wiki and review API",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/admin/audit-log": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "admin_audit_log",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModerationAction"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/commits/{commit_id}/revert": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_revert_commit",
+        "parameters": [
+          {
+            "name": "commit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevertCommitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reports": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "admin_reports",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Report"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reports/{report_id}/resolve": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_resolve_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviews/{review_id}/hide": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_hide_review",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reviews/{review_id}/restore": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_restore_review",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sections/{section_id}/lock": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_lock_section",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockSectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiSection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sections/{section_id}/restore-version/{version_id}": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_restore_version",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/sections/{section_id}/unlock": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "admin_unlock_section",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiSection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{user_id}/role": {
+      "put": {
+        "tags": ["api"],
+        "operationId": "admin_update_user_role",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "list_courses",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Course"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["api"],
+        "operationId": "create_course",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCourseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/{code}": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "get_course",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Course"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/{course_ref}/offerings": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "list_course_offerings",
+        "parameters": [
+          {
+            "name": "course_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CourseOffering"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["api"],
+        "operationId": "create_offering",
+        "parameters": [
+          {
+            "name": "course_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOfferingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseOffering"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offerings/{offering_id}": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "get_offering",
+        "parameters": [
+          {
+            "name": "offering_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferingWithCourse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offerings/{offering_id}/reviews": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "list_reviews",
+        "parameters": [
+          {
+            "name": "offering_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/offerings/{offering_id}/sections": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "list_sections",
+        "parameters": [
+          {
+            "name": "offering_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SectionSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "create_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "create_review",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reviews/{review_id}": {
+      "put": {
+        "tags": ["api"],
+        "operationId": "update_review",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewMutationResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sections/{section_id}": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "get_section",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sections/{section_id}/edit": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "edit_section",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditSectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditSectionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sections/{section_id}/history": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "section_history",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sections/{section_id}/verify": {
+      "post": {
+        "tags": ["api"],
+        "operationId": "verify_section",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifySectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/versions/{old_version_id}/diff/{new_version_id}": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "diff_versions",
+        "parameters": [
+          {
+            "name": "old_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "new_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/dev-login": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "dev_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/microsoft/callback": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "microsoft_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "description": "OIDC authorization code",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "OIDC state value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Redirect to frontend after local session creation"
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/microsoft/login": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "microsoft_login",
+        "responses": {
+          "307": {
+            "description": "Redirect to Microsoft Entra authorization endpoint"
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["api"],
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Course": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "title",
+          "archived",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "au": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "school": {
+            "type": ["string", "null"]
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CourseOffering": {
+        "type": "object",
+        "required": [
+          "id",
+          "course_id",
+          "academic_year",
+          "semester",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "academic_year": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "inherited_from_offering_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "semester": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateCourseRequest": {
+        "type": "object",
+        "required": ["code", "title"],
+        "properties": {
+          "au": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "school": {
+            "type": ["string", "null"]
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateOfferingRequest": {
+        "type": "object",
+        "required": ["academic_year", "semester"],
+        "properties": {
+          "academic_year": {
+            "type": "string"
+          },
+          "inherited_from_offering_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "semester": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateReviewRequest": {
+        "type": "object",
+        "required": ["offering_id", "body_markdown"],
+        "properties": {
+          "body_markdown": {
+            "type": "string"
+          },
+          "offering_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rating_difficulty": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_teaching": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_usefulness": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_workload": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "workload_hours_per_week": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          }
+        }
+      },
+      "DevLoginRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "display_name": {
+            "type": ["string", "null"]
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "DiffLine": {
+        "type": "object",
+        "required": ["kind", "text"],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "DiffResponse": {
+        "type": "object",
+        "required": [
+          "old_version_id",
+          "new_version_id",
+          "old_content",
+          "new_content",
+          "lines"
+        ],
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiffLine"
+            }
+          },
+          "new_content": {
+            "type": "string"
+          },
+          "new_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "old_content": {
+            "type": "string"
+          },
+          "old_version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "EditSectionRequest": {
+        "type": "object",
+        "required": ["content_markdown", "message"],
+        "properties": {
+          "base_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "content_json": {},
+          "content_markdown": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "EditSectionResponse": {
+        "type": "object",
+        "required": ["version", "commit"],
+        "properties": {
+          "commit": {
+            "$ref": "#/components/schemas/WikiCommit"
+          },
+          "version": {
+            "$ref": "#/components/schemas/WikiVersion"
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": {},
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HideReviewRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "HistoryItem": {
+        "type": "object",
+        "required": ["version", "commit", "author", "source_section_id"],
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/User"
+          },
+          "commit": {
+            "$ref": "#/components/schemas/WikiCommit"
+          },
+          "source_section_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "$ref": "#/components/schemas/WikiVersion"
+          }
+        }
+      },
+      "LockSectionRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": ["string", "null"]
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["user"],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ]
+          }
+        }
+      },
+      "ModerationAction": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor_user_id",
+          "target_type",
+          "target_id",
+          "action_type",
+          "created_at"
+        ],
+        "properties": {
+          "action_type": {
+            "type": "string"
+          },
+          "actor_user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metadata": {},
+          "reason": {
+            "type": ["string", "null"]
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        }
+      },
+      "OfferingWithCourse": {
+        "type": "object",
+        "required": ["offering", "course"],
+        "properties": {
+          "course": {
+            "$ref": "#/components/schemas/Course"
+          },
+          "offering": {
+            "$ref": "#/components/schemas/CourseOffering"
+          }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "required": [
+          "id",
+          "reporter_user_id",
+          "target_type",
+          "target_id",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reporter_user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ReportRequest": {
+        "type": "object",
+        "required": ["target_type", "target_id", "reason"],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ResolveReportRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RestoreVersionRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RevertCommitRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "required": [
+          "id",
+          "offering_id",
+          "user_id",
+          "hidden",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "hidden_reason": {
+            "type": ["string", "null"]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "offering_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ReviewMutationResponse": {
+        "type": "object",
+        "required": ["review", "version"],
+        "properties": {
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ReviewVersion"
+          }
+        }
+      },
+      "ReviewResponse": {
+        "type": "object",
+        "required": ["review", "current_version", "author"],
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/User"
+          },
+          "current_version": {
+            "$ref": "#/components/schemas/ReviewVersion"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          }
+        }
+      },
+      "ReviewVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "review_id",
+          "author_user_id",
+          "body_markdown",
+          "created_at"
+        ],
+        "properties": {
+          "author_user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "body_markdown": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rating_difficulty": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_teaching": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_usefulness": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_workload": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "review_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workload_hours_per_week": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          }
+        }
+      },
+      "SectionDetail": {
+        "type": "object",
+        "required": [
+          "section",
+          "offering",
+          "course",
+          "inherited",
+          "verification_count"
+        ],
+        "properties": {
+          "course": {
+            "$ref": "#/components/schemas/Course"
+          },
+          "current_version": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WikiVersion"
+              }
+            ]
+          },
+          "inherited": {
+            "type": "boolean"
+          },
+          "offering": {
+            "$ref": "#/components/schemas/CourseOffering"
+          },
+          "section": {
+            "$ref": "#/components/schemas/WikiSection"
+          },
+          "source_section_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "verification_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SectionSummary": {
+        "type": "object",
+        "required": ["section", "inherited", "verification_count"],
+        "properties": {
+          "current_version": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WikiVersion"
+              }
+            ]
+          },
+          "inherited": {
+            "type": "boolean"
+          },
+          "section": {
+            "$ref": "#/components/schemas/WikiSection"
+          },
+          "source_section_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "verification_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UpdateReviewRequest": {
+        "type": "object",
+        "required": ["body_markdown"],
+        "properties": {
+          "body_markdown": {
+            "type": "string"
+          },
+          "rating_difficulty": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_teaching": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_usefulness": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "rating_workload": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          },
+          "workload_hours_per_week": {
+            "type": ["integer", "null"],
+            "format": "int32"
+          }
+        }
+      },
+      "UpdateUserRoleRequest": {
+        "type": "object",
+        "required": ["role"],
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "email",
+          "role",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "display_name": {
+            "type": ["string", "null"]
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "provider_tenant_id": {
+            "type": ["string", "null"]
+          },
+          "provider_user_id": {
+            "type": ["string", "null"]
+          },
+          "role": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VerificationResponse": {
+        "type": "object",
+        "required": ["section_id", "version_id", "verification_count"],
+        "properties": {
+          "section_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verification_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VerifySectionRequest": {
+        "type": "object",
+        "required": ["version_id"],
+        "properties": {
+          "verification_type": {
+            "type": ["string", "null"]
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VisibleVersion": {
+        "type": "object",
+        "required": ["version", "source_section_id", "inherited"],
+        "properties": {
+          "inherited": {
+            "type": "boolean"
+          },
+          "source_section_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "$ref": "#/components/schemas/WikiVersion"
+          }
+        }
+      },
+      "WikiCommit": {
+        "type": "object",
+        "required": [
+          "id",
+          "author_user_id",
+          "message",
+          "commit_type",
+          "created_at"
+        ],
+        "properties": {
+          "author_user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "commit_type": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string"
+          },
+          "reverted_commit_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          }
+        }
+      },
+      "WikiCommitChange": {
+        "type": "object",
+        "required": ["id", "commit_id", "section_id", "change_type"],
+        "properties": {
+          "change_type": {
+            "type": "string"
+          },
+          "commit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "new_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "old_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "section_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "WikiSection": {
+        "type": "object",
+        "required": [
+          "id",
+          "offering_id",
+          "section_key",
+          "title",
+          "locked",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "head_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "inherited_from_section_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "offering_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "section_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WikiVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "section_id",
+          "commit_id",
+          "content_markdown",
+          "content_hash",
+          "created_at"
+        ],
+        "properties": {
+          "commit_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "content_json": {},
+          "content_markdown": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parent_version_id": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "section_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}

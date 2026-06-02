@@ -1,0 +1,15 @@
+pre-commit:
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,json,jsonc,css,md,yml,yaml}"
+      run: pnpm biome check {staged_files}
+    cargo-fmt:
+      run: cargo fmt --all -- --check
+
+pre-push:
+  commands:
+    frontend-build:
+      run: pnpm --filter frontend typecheck && pnpm --filter frontend build
+    backend-check:
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings && cargo nextest run --workspace
+

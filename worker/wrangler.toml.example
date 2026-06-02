@@ -1,0 +1,15 @@
+name = "open-ntu-mods-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+[vars]
+RAILWAY_ORIGIN = "https://example.up.railway.app"
+ORIGIN_SECRET = "replace-me"
+
+# Add Cloudflare WAF/rate limiting rules for auth and write routes in production.
+# Example focus areas:
+# - /auth/*
+# - POST /api/sections/*
+# - POST/PUT /api/reviews*
+# - /api/admin/*
+
