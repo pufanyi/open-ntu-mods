@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+  # sqlx 0.8.x records optional MySQL macro support in Cargo.lock, which pulls
+  # rsa 0.9.10. The backend disables sqlx default features and enables Postgres
+  # only; no MySQL code path is compiled or used. No fixed rsa upgrade is
+  # currently available through sqlx.
+  "RUSTSEC-2023-0071"
+]
+
