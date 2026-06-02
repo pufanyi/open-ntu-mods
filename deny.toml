@@ -1,9 +1,7 @@
 [advisories]
 version = 2
 yanked = "deny"
-ignore = [
-  { id = "RUSTSEC-2023-0071", reason = "sqlx 0.8.x records optional MySQL macro support in Cargo.lock, but this backend disables sqlx default features and compiles Postgres only; no MySQL/rsa code path is used." }
-]
+ignore = []
 
 [licenses]
 version = 2
@@ -12,9 +10,11 @@ allow = [
   "Apache-2.0",
   "BSD-2-Clause",
   "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
   "ISC",
   "MIT",
-  "Unicode-3.0"
+  "Unicode-3.0",
+  "Zlib"
 ]
 
 [bans]
