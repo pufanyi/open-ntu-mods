@@ -1,0 +1,10 @@
+name = "open-ntu-mods-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# Configure these in the Cloudflare dashboard or with Wrangler:
+# - RAILWAY_ORIGIN as a plain Worker variable
+# - ORIGIN_SECRET as a Worker secret
+#
+# Do not commit ORIGIN_SECRET here.
+

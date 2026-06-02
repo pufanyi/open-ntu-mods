@@ -49,16 +49,31 @@ Deploy `worker/` with:
 ```bash
 cd worker
 pnpm install
-cp wrangler.toml.example wrangler.toml
 pnpm wrangler secret put ORIGIN_SECRET
 pnpm deploy
 ```
 
-Set:
+Set Cloudflare Worker variables:
 
 ```env
 RAILWAY_ORIGIN=https://your-railway-app.up.railway.app
 ORIGIN_SECRET=the-same-secret-as-backend
+```
+
+`RAILWAY_ORIGIN` can be a plain Worker variable. `ORIGIN_SECRET` must be a Worker secret.
+
+For Cloudflare Git deployments from the repository root, do not use `npx wrangler deploy` at the workspace root. Use:
+
+```bash
+pnpm --filter worker build
+pnpm deploy:worker
+```
+
+Or set the Cloudflare project root directory to `worker/` and use:
+
+```bash
+pnpm build
+pnpm deploy
 ```
 
 Route your public domain to the Worker. The Worker forwards the origin secret to Railway and adds security headers.
@@ -66,4 +81,3 @@ Route your public domain to the Worker. The Worker forwards the origin secret to
 ## Backups
 
 Use Railway PostgreSQL backups plus periodic logical dumps. Keep at least one recent backup outside the primary Railway project for disaster recovery.
-

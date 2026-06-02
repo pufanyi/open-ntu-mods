@@ -20,6 +20,8 @@
     "ignoreUnknown": false,
     "includes": [
       "**",
+      "!.git",
+      "!.jj",
       "!target",
       "!backend/target",
       "!frontend/dist",

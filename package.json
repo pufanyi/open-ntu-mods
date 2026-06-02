@@ -10,6 +10,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
+    "deploy:worker": "pnpm -C worker deploy",
     "generate:api": "pnpm --filter frontend generate:api"
   },
   "devDependencies": {

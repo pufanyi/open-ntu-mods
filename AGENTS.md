@@ -110,6 +110,8 @@ backend/Dockerfile
   root-level frontend files, make sure `backend/Dockerfile` copies those files
   into the frontend build stage.
 - Cloudflare Worker deploys from `worker/`, not Railway.
+- Do not run `wrangler deploy` from the repository root. Use
+  `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
 - Backend origin protection intentionally exempts `/health` so Railway
   healthchecks can pass without custom headers. Do not exempt API/Auth routes.
