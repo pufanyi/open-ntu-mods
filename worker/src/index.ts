@@ -15,6 +15,16 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<Response> {
+    const configError = validateConfig(env);
+    if (configError) {
+      return withSecurityHeaders(
+        new Response(configError, {
+          status: 500,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        }),
+      );
+    }
+
     const url = new URL(request.url);
     const origin = new URL(env.RAILWAY_ORIGIN);
     const upstreamUrl = new URL(url.pathname + url.search, origin);
@@ -50,6 +60,26 @@ export default {
     return response;
   },
 };
+
+function validateConfig(env: Env): string | null {
+  if (!env.RAILWAY_ORIGIN) {
+    return "Worker misconfigured: RAILWAY_ORIGIN is missing.";
+  }
+  if (!env.ORIGIN_SECRET) {
+    return "Worker misconfigured: ORIGIN_SECRET is missing.";
+  }
+
+  try {
+    const origin = new URL(env.RAILWAY_ORIGIN);
+    if (origin.protocol !== "https:") {
+      return "Worker misconfigured: RAILWAY_ORIGIN must start with https://.";
+    }
+  } catch {
+    return "Worker misconfigured: RAILWAY_ORIGIN is not a valid URL.";
+  }
+
+  return null;
+}
 
 function isCacheablePublicGet(request: Request, url: URL): boolean {
   if (request.method !== "GET") {

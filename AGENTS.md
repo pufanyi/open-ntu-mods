@@ -113,6 +113,9 @@ backend/Dockerfile
 - Do not run `wrangler deploy` from the repository root. Use
   `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
+- Worker production variables must include `RAILWAY_ORIGIN=https://...` as a
+  plain variable and `ORIGIN_SECRET` as a secret. Missing Worker variables are
+  the most common cause of Cloudflare 1101 errors.
 - Backend origin protection intentionally exempts `/health` so Railway
   healthchecks can pass without custom headers. Do not exempt API/Auth routes.
 
