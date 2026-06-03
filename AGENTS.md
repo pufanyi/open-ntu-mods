@@ -114,6 +114,10 @@ backend/Dockerfile
   root-level frontend files, make sure `backend/Dockerfile` copies those files
   into the frontend build stage.
 - Cloudflare Worker deploys from `worker/`, not Railway.
+- `worker/wrangler.toml` keeps runtime variables and secrets managed in the
+  Cloudflare dashboard with `keep_vars = true`. Do not commit `ORIGIN_SECRET`;
+  keep `RAILWAY_ORIGIN` set as a plain Worker variable in Cloudflare unless the
+  production origin is intentionally moved into version-controlled config.
 - Do not run `wrangler deploy` from the repository root. Use
   `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.

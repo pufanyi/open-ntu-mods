@@ -1,10 +1,16 @@
 name = "open-ntu-mods-gateway"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
+workers_dev = false
+keep_vars = true
 
-# Configure these in the Cloudflare dashboard or with Wrangler:
+# Runtime configuration is managed in the Cloudflare dashboard:
 # - RAILWAY_ORIGIN as a plain Worker variable
 # - ORIGIN_SECRET as a Worker secret
-#
-# Do not commit ORIGIN_SECRET here.
+# keep_vars preserves those dashboard-managed bindings on Wrangler deploy.
 
+[observability]
+enabled = true
+
+[secrets]
+required = ["ORIGIN_SECRET"]
