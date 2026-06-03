@@ -4,6 +4,7 @@ export interface Env {
 }
 
 type CachePolicy = {
+  kind: "asset" | "api";
   keyVersion: string;
   cacheControl: string;
 };
@@ -15,11 +16,13 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 const STATIC_ASSET_CACHE: CachePolicy = {
-  keyVersion: "assets-v1",
+  kind: "asset",
+  keyVersion: "assets-v2",
   cacheControl: "public, max-age=31536000, immutable",
 };
 
 const PUBLIC_API_CACHE: CachePolicy = {
+  kind: "api",
   keyVersion: "public-api-v2",
   cacheControl: "public, max-age=30, stale-while-revalidate=120",
 };
@@ -71,17 +74,15 @@ export default {
       redirect: "manual",
     });
     const upstreamResponse = await fetch(upstreamRequest);
+    const canCacheResponse =
+      cachePolicy !== null &&
+      isCacheableResponse(cachePolicy, upstreamResponse);
     const response = finalizeResponse(upstreamResponse, {
-      cacheControl: cachePolicy?.cacheControl,
-      cacheStatus: cachePolicy ? "MISS" : "BYPASS",
+      cacheControl: canCacheResponse ? cachePolicy.cacheControl : undefined,
+      cacheStatus: canCacheResponse ? "MISS" : "BYPASS",
     });
 
-    if (
-      cacheKey &&
-      cachePolicy &&
-      response.ok &&
-      !response.headers.has("Set-Cookie")
-    ) {
+    if (cacheKey && cachePolicy && canCacheResponse) {
       const cachedResponse = new Response(response.clone().body, response);
       cachedResponse.headers.set("Cache-Control", cachePolicy.cacheControl);
       cachedResponse.headers.delete("X-Open-Ntu-Cache");
@@ -141,6 +142,19 @@ function cachePolicyFor(request: Request, url: URL): CachePolicy | null {
   }
 
   return null;
+}
+
+function isCacheableResponse(policy: CachePolicy, response: Response): boolean {
+  if (!response.ok || response.headers.has("Set-Cookie")) {
+    return false;
+  }
+
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (policy.kind === "asset") {
+    return !contentType.toLowerCase().includes("text/html");
+  }
+
+  return true;
 }
 
 function buildCacheKey(
