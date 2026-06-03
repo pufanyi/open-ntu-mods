@@ -5,7 +5,8 @@
 Open NTU Mods is a monorepo with three deployable parts:
 
 - `backend/`: Axum JSON API, SQLx/PostgreSQL data model, cookie sessions, OpenAPI, and production static frontend serving.
-- `frontend/`: React/Vite SPA using generated OpenAPI types and `openapi-fetch`.
+- `frontend/`: Angular 21 SPA using standalone components, generated OpenAPI
+  types, and `openapi-fetch`.
 - `worker/`: Cloudflare Worker reverse proxy in front of the Railway backend.
 
 Railway hosts PostgreSQL and the Rust app. Cloudflare Workers adds security headers, forwards `X-Origin-Secret`, and caches public GET responses for course/wiki pages.

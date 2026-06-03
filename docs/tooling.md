@@ -32,6 +32,22 @@ pnpm --filter frontend generate:api
 
 The frontend imports generated types from `frontend/src/generated/api-types.ts`.
 
+## Frontend
+
+`frontend/` is an Angular 21 app using standalone components. Local development
+uses Angular dev server on port 5173 with `frontend/proxy.conf.json` forwarding
+API and auth requests to the Rust backend.
+
+```bash
+pnpm --filter frontend dev
+pnpm --filter frontend typecheck
+pnpm --filter frontend build
+pnpm --filter frontend test
+```
+
+`typecheck` runs an Angular development build so TypeScript and Angular template
+checks run together.
+
 ## Rust Checks
 
 ```bash
@@ -64,4 +80,3 @@ lefthook install
 ## CI
 
 GitHub Actions runs separate backend, frontend, and worker jobs. Backend CI starts PostgreSQL, runs migrations, then runs format, clippy, nextest, audit, and deny.
-

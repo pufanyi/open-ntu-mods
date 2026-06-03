@@ -5,7 +5,7 @@ Open NTU Mods is an MVP course wiki and review site for NTU students. Public cou
 ## Stack
 
 - Backend: Rust, Axum, PostgreSQL, SQLx, tower-http, tracing, cookie sessions, Utoipa OpenAPI.
-- Frontend: React, TypeScript, Vite, TanStack Router, TanStack Query, openapi-typescript, openapi-fetch, Biome, Vitest.
+- Frontend: Angular 21 standalone components, TypeScript, Angular CLI/build, openapi-typescript, openapi-fetch, Biome, Vitest.
 - Edge: Cloudflare Workers TypeScript reverse proxy for Railway.
 - Tooling: pnpm workspace, mise, lefthook, GitHub Actions, cargo fmt/clippy/nextest/audit/deny.
 
@@ -57,6 +57,6 @@ cargo deny check
 
 ## Deployment
 
-Deploy PostgreSQL and the Rust app on Railway. Build with `backend/Dockerfile`; the image builds the React app and serves `frontend/dist` from the Rust backend. Put Cloudflare Workers in front of Railway, set `RAILWAY_ORIGIN` and `ORIGIN_SECRET`, and require `X-Origin-Secret` in production.
+Deploy PostgreSQL and the Rust app on Railway. Build with `backend/Dockerfile`; the image builds the Angular app and serves `frontend/dist` from the Rust backend. Put Cloudflare Workers in front of Railway, set `RAILWAY_ORIGIN` and `ORIGIN_SECRET`, and require `X-Origin-Secret` in production.
 
 See `docs/` for architecture, API, tooling, deployment, and local development details.

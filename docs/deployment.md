@@ -110,7 +110,7 @@ Route your public domain to the Worker. The Worker forwards the origin secret to
 
 The Worker caches only safe public reads:
 
-- `/assets/*` Vite build assets are cached long-term because filenames are
+- Hashed frontend build assets are cached long-term because filenames are
   content-hashed.
 - Anonymous `GET /api/courses*`, `GET /api/offerings*`, and
   `GET /api/sections*` responses are cached briefly at the edge.

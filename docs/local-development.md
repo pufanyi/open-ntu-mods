@@ -30,7 +30,8 @@ pnpm --filter frontend generate:api
 pnpm --filter frontend dev
 ```
 
-Open `http://localhost:5173`. The Vite server proxies `/api`, `/auth`, `/health`, and `/openapi.json` to the backend.
+Open `http://localhost:5173`. The Angular dev server proxies `/api`, `/auth`,
+`/health`, and `/openapi.json` to the backend through `frontend/proxy.conf.json`.
 
 ## Demo Users
 

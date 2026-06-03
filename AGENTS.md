@@ -19,7 +19,7 @@ Project guidance for agents working on `open-ntu-mods`.
   moderation/admin workflows.
 - Backend: Rust, Axum, PostgreSQL, SQLx, tower-http, tracing, cookie sessions,
   email-code login, dev-login for local/staging only, Utoipa OpenAPI.
-- Frontend: React, TypeScript, Vite, TanStack Router, TanStack Query,
+- Frontend: Angular 21 standalone components, TypeScript, Angular CLI/build,
   generated OpenAPI types, openapi-fetch, Biome, Vitest, Playwright smoke spec.
 - Worker: Cloudflare Worker TypeScript reverse proxy to the Railway backend.
 - Deployment: Railway runs PostgreSQL and the Rust backend. The backend
@@ -33,7 +33,8 @@ Project guidance for agents working on `open-ntu-mods`.
 - Push `main` with `jj git push --bookmark main` after moving the bookmark to
   the intended change.
 - Avoid committing generated build output such as `frontend/dist`, `target`, or
-  `node_modules`.
+  `node_modules`. Angular's `frontend/.angular` cache is also generated and is
+  ignored by both Git and Biome.
 
 ## Local Development
 
@@ -59,8 +60,8 @@ pnpm --filter frontend generate:api
 pnpm --filter frontend dev
 ```
 
-Open `http://localhost:5173`. Vite proxies `/api`, `/auth`, `/health`, and
-`/openapi.json` to the backend.
+Open `http://localhost:5173`. Angular dev server proxies `/api`, `/auth`,
+`/health`, and `/openapi.json` to the backend through `frontend/proxy.conf.json`.
 
 ## Verification Commands
 
@@ -133,9 +134,9 @@ backend/Dockerfile
 
 - Root directory should stay at repository root because the Dockerfile needs
   `frontend/`, `package.json`, `pnpm-lock.yaml`, and Rust workspace files.
-- If `frontend/tsconfig.json` or Vite config starts depending on additional
-  root-level frontend files, make sure `backend/Dockerfile` copies those files
-  into the frontend build stage.
+- If Angular build config starts depending on additional frontend root files,
+  make sure `backend/Dockerfile` copies those files into the frontend build
+  stage.
 - Cloudflare Worker deploys from `worker/`, not Railway.
 - `worker/wrangler.toml` keeps runtime variables and secrets managed in the
   Cloudflare dashboard with `keep_vars = true`. Do not commit `ORIGIN_SECRET`;
@@ -143,8 +144,8 @@ backend/Dockerfile
   production origin is intentionally moved into version-controlled config.
 - Do not run `wrangler deploy` from the repository root. Use
   `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
-- Worker caching is intentionally narrow: `/assets/*` is cached long-term as
-  immutable Vite build output; anonymous public GETs under `/api/courses`,
+- Worker caching is intentionally narrow: hashed frontend assets are cached
+  long-term as immutable build output; anonymous public GETs under `/api/courses`,
   `/api/offerings`, and `/api/sections` are cached briefly; requests with
   cookies bypass API caching so logged-in edits and moderation actions see
   fresh data.
@@ -164,7 +165,7 @@ backend/Dockerfile
   the most common cause of Cloudflare 1101 errors.
 - Backend origin protection intentionally exempts `/health` so Railway
   healthchecks can pass without custom headers. Do not exempt API/Auth routes.
-- The backend serves the built React app for non-API routes. Keep SPA fallback
+- The backend serves the built Angular app for non-API routes. Keep SPA fallback
   as a 200 response with `ServeDir::fallback(ServeFile::new(index))`; do not use
   `not_found_service` for `index.html`, because that returns 404 with HTML.
 

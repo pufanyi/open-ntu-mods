@@ -3,7 +3,7 @@
 FROM node:24-slim AS frontend-builder
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml biome.json ./
-COPY frontend/package.json frontend/tsconfig.json frontend/vite.config.ts frontend/vitest.setup.ts frontend/index.html ./frontend/
+COPY frontend/package.json frontend/angular.json frontend/tsconfig.json frontend/tsconfig.app.json frontend/index.html ./frontend/
 COPY frontend/public ./frontend/public
 COPY frontend/src ./frontend/src
 COPY backend/openapi.json ./backend/openapi.json

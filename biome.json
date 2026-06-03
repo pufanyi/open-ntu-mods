@@ -22,6 +22,8 @@
       "**",
       "!.git",
       "!.jj",
+      "!.angular",
+      "!frontend/.angular",
       "!target",
       "!backend/target",
       "!frontend/dist",

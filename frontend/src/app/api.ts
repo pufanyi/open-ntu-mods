@@ -1,18 +1,25 @@
 import createClient from "openapi-fetch";
-import type { components, paths } from "./generated/api-types";
+import type { components, paths } from "../generated/api-types";
 
 export const api = createClient<paths>({
-  baseUrl: import.meta.env.VITE_API_BASE_URL || "",
+  baseUrl: "",
   fetch: (request: Request) => fetch(request, { credentials: "include" }),
 });
 
+export type AccountSession = components["schemas"]["AccountSession"];
 export type Course = components["schemas"]["Course"];
 export type CourseOffering = components["schemas"]["CourseOffering"];
+export type DiffResponse = components["schemas"]["DiffResponse"];
+export type HistoryItem = components["schemas"]["HistoryItem"];
+export type MeResponse = components["schemas"]["MeResponse"];
+export type ModerationAction = components["schemas"]["ModerationAction"];
+export type OfferingWithCourse = components["schemas"]["OfferingWithCourse"];
+export type Report = components["schemas"]["Report"];
+export type ReviewResponse = components["schemas"]["ReviewResponse"];
 export type SectionDetail = components["schemas"]["SectionDetail"];
 export type SectionSummary = components["schemas"]["SectionSummary"];
-export type HistoryItem = components["schemas"]["HistoryItem"];
-export type ReviewResponse = components["schemas"]["ReviewResponse"];
 export type User = components["schemas"]["User"];
+export type WikiVersion = components["schemas"]["WikiVersion"];
 
 export class ApiClientError extends Error {
   status: number;

@@ -121,7 +121,7 @@ function cachePolicyFor(request: Request, url: URL): CachePolicy | null {
     return null;
   }
 
-  if (url.pathname.startsWith("/assets/")) {
+  if (isFrontendAssetPath(url.pathname)) {
     return STATIC_ASSET_CACHE;
   }
 
@@ -145,6 +145,16 @@ function cachePolicyFor(request: Request, url: URL): CachePolicy | null {
   }
 
   return null;
+}
+
+function isFrontendAssetPath(pathname: string): boolean {
+  if (pathname.startsWith("/assets/") || pathname.startsWith("/media/")) {
+    return true;
+  }
+
+  return /^\/(?:main|polyfills|runtime|styles|chunk|vendor)-[A-Z0-9_-]+\.(?:js|css)$/.test(
+    pathname,
+  );
 }
 
 function isCacheableResponse(policy: CachePolicy, response: Response): boolean {
