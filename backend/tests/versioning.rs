@@ -20,7 +20,6 @@ const ADMIN_ID: &str = "00000000-0000-0000-0000-000000000003";
 const OFFERING_2025_ID: &str = "20000000-0000-0000-0000-000000000002";
 const SECTION_2025_ASSESSMENT_ID: &str = "30000000-0000-0000-0000-000000000102";
 const SECTION_2025_OVERVIEW_ID: &str = "30000000-0000-0000-0000-000000000101";
-const VERSION_2025_OVERVIEW_ID: &str = "50000000-0000-0000-0000-000000000101";
 
 #[sqlx::test(migrations = "./migrations")]
 async fn session_token_hashing_and_lookup(pool: PgPool) {
@@ -54,17 +53,17 @@ async fn session_token_hashing_and_lookup(pool: PgPool) {
 async fn edit_section_creates_commit_version_change_and_detects_conflict(pool: PgPool) {
     let student_id = uuid(STUDENT_ID);
     let section_id = uuid(SECTION_2025_ASSESSMENT_ID);
-    let inherited = versioning::get_visible_version(&pool, section_id)
+    let current = versioning::get_visible_version(&pool, section_id)
         .await
         .unwrap()
         .unwrap();
-    assert!(inherited.inherited);
+    assert_eq!(current.version.section_id, section_id);
 
     let edit = versioning::edit_section(
         &pool,
         student_id,
         section_id,
-        Some(inherited.version.id),
+        Some(current.version.id),
         "Updated local AY2025/26 assessment note.".to_string(),
         None,
         "Update assessment".to_string(),
@@ -73,7 +72,7 @@ async fn edit_section_creates_commit_version_change_and_detects_conflict(pool: P
     .unwrap();
 
     assert_eq!(edit.version.section_id, section_id);
-    assert_eq!(edit.version.parent_version_id, Some(inherited.version.id));
+    assert_eq!(edit.version.parent_version_id, Some(current.version.id));
     assert_eq!(edit.commit.commit_type, "edit");
 
     let change_count: (i64,) =
@@ -88,7 +87,7 @@ async fn edit_section_creates_commit_version_change_and_detects_conflict(pool: P
         &pool,
         student_id,
         section_id,
-        Some(inherited.version.id),
+        Some(current.version.id),
         "Conflicting stale edit.".to_string(),
         None,
         "Stale edit".to_string(),
@@ -103,7 +102,12 @@ async fn restore_and_revert_create_new_versions_without_deleting_history(pool: P
     let student_id = uuid(STUDENT_ID);
     let admin_id = uuid(ADMIN_ID);
     let section_id = uuid(SECTION_2025_OVERVIEW_ID);
-    let base_version_id = uuid(VERSION_2025_OVERVIEW_ID);
+    let base_version_id = versioning::get_visible_version(&pool, section_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .version
+        .id;
 
     let edit = versioning::edit_section(
         &pool,

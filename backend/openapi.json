@@ -1149,10 +1149,6 @@
             "type": "string",
             "format": "uuid"
           },
-          "inherited_from_offering_id": {
-            "type": ["string", "null"],
-            "format": "uuid"
-          },
           "semester": {
             "type": "string"
           },
@@ -1190,10 +1186,6 @@
         "properties": {
           "academic_year": {
             "type": "string"
-          },
-          "inherited_from_offering_id": {
-            "type": ["string", "null"],
-            "format": "uuid"
           },
           "semester": {
             "type": "string"
@@ -1363,17 +1355,13 @@
       },
       "HistoryItem": {
         "type": "object",
-        "required": ["version", "commit", "author", "source_section_id"],
+        "required": ["version", "commit", "author"],
         "properties": {
           "author": {
             "$ref": "#/components/schemas/User"
           },
           "commit": {
             "$ref": "#/components/schemas/WikiCommit"
-          },
-          "source_section_id": {
-            "type": "string",
-            "format": "uuid"
           },
           "version": {
             "$ref": "#/components/schemas/WikiVersion"
@@ -1668,13 +1656,7 @@
       },
       "SectionDetail": {
         "type": "object",
-        "required": [
-          "section",
-          "offering",
-          "course",
-          "inherited",
-          "verification_count"
-        ],
+        "required": ["section", "offering", "course", "verification_count"],
         "properties": {
           "course": {
             "$ref": "#/components/schemas/Course"
@@ -1689,18 +1671,11 @@
               }
             ]
           },
-          "inherited": {
-            "type": "boolean"
-          },
           "offering": {
             "$ref": "#/components/schemas/CourseOffering"
           },
           "section": {
             "$ref": "#/components/schemas/WikiSection"
-          },
-          "source_section_id": {
-            "type": ["string", "null"],
-            "format": "uuid"
           },
           "verification_count": {
             "type": "integer",
@@ -1710,7 +1685,7 @@
       },
       "SectionSummary": {
         "type": "object",
-        "required": ["section", "inherited", "verification_count"],
+        "required": ["section", "verification_count"],
         "properties": {
           "current_version": {
             "oneOf": [
@@ -1722,15 +1697,8 @@
               }
             ]
           },
-          "inherited": {
-            "type": "boolean"
-          },
           "section": {
             "$ref": "#/components/schemas/WikiSection"
-          },
-          "source_section_id": {
-            "type": ["string", "null"],
-            "format": "uuid"
           },
           "verification_count": {
             "type": "integer",
@@ -1852,15 +1820,8 @@
       },
       "VisibleVersion": {
         "type": "object",
-        "required": ["version", "source_section_id", "inherited"],
+        "required": ["version"],
         "properties": {
-          "inherited": {
-            "type": "boolean"
-          },
-          "source_section_id": {
-            "type": "string",
-            "format": "uuid"
-          },
           "version": {
             "$ref": "#/components/schemas/WikiVersion"
           }
@@ -1951,10 +1912,6 @@
           },
           "id": {
             "type": "string",
-            "format": "uuid"
-          },
-          "inherited_from_section_id": {
-            "type": ["string", "null"],
             "format": "uuid"
           },
           "locked": {

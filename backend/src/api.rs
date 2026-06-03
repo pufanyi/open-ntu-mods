@@ -136,19 +136,6 @@ pub async fn create_offering(
         return Err(ApiError::NotFound("course not found".into()));
     }
 
-    if let Some(parent_id) = request.inherited_from_offering_id {
-        let parent_course: Option<(Uuid,)> =
-            sqlx::query_as("select course_id from course_offerings where id = $1")
-                .bind(parent_id)
-                .fetch_optional(&mut *tx)
-                .await?;
-        if parent_course.map(|row| row.0) != Some(course_id) {
-            return Err(ApiError::BadRequest(
-                "inherited offering must belong to the same course".into(),
-            ));
-        }
-    }
-
     let offering = sqlx::query_as::<_, CourseOffering>(
         "insert into course_offerings
          (id, course_id, academic_year, semester, status, inherited_from_offering_id, created_at, updated_at)
@@ -159,7 +146,7 @@ pub async fn create_offering(
     .bind(course_id)
     .bind(request.academic_year.trim())
     .bind(request.semester.trim())
-    .bind(request.inherited_from_offering_id)
+    .bind(Option::<Uuid>::None)
     .fetch_one(&mut *tx)
     .await?;
 
@@ -270,8 +257,6 @@ pub async fn get_section(
         offering: row.offering(),
         course: row.course(),
         current_version: visible.as_ref().map(|visible| visible.version.clone()),
-        source_section_id: visible.as_ref().map(|visible| visible.source_section_id),
-        inherited: visible.as_ref().is_some_and(|visible| visible.inherited),
         verification_count,
     }))
 }
@@ -770,8 +755,6 @@ async fn section_summary(pool: &PgPool, section: WikiSection) -> ApiResult<Secti
     Ok(SectionSummary {
         section,
         current_version: visible.as_ref().map(|visible| visible.version.clone()),
-        source_section_id: visible.as_ref().map(|visible| visible.source_section_id),
-        inherited: visible.as_ref().is_some_and(|visible| visible.inherited),
         verification_count,
     })
 }
@@ -780,48 +763,25 @@ async fn create_initial_sections(
     tx: &mut Transaction<'_, Postgres>,
     offering: &CourseOffering,
 ) -> ApiResult<()> {
-    if let Some(parent_id) = offering.inherited_from_offering_id {
-        let parent_sections = sqlx::query_as::<_, WikiSection>(
-            "select * from wiki_sections where offering_id = $1 order by section_key",
+    for (key, title) in [
+        ("overview", "Overview"),
+        ("assessment", "Assessment"),
+        ("workload", "Workload"),
+        ("project", "Project"),
+        ("exam", "Exam"),
+        ("tips", "Tips"),
+    ] {
+        sqlx::query(
+            "insert into wiki_sections
+             (id, offering_id, section_key, title, head_version_id, inherited_from_section_id, locked, created_at, updated_at)
+             values ($1, $2, $3, $4, null, null, false, now(), now())",
         )
-        .bind(parent_id)
-        .fetch_all(&mut **tx)
+        .bind(Uuid::new_v4())
+        .bind(offering.id)
+        .bind(key)
+        .bind(title)
+        .execute(&mut **tx)
         .await?;
-        for section in parent_sections {
-            sqlx::query(
-                "insert into wiki_sections
-                 (id, offering_id, section_key, title, head_version_id, inherited_from_section_id, locked, created_at, updated_at)
-                 values ($1, $2, $3, $4, null, $5, false, now(), now())",
-            )
-            .bind(Uuid::new_v4())
-            .bind(offering.id)
-            .bind(section.section_key)
-            .bind(section.title)
-            .bind(section.id)
-            .execute(&mut **tx)
-            .await?;
-        }
-    } else {
-        for (key, title) in [
-            ("overview", "Overview"),
-            ("assessment", "Assessment"),
-            ("workload", "Workload"),
-            ("project", "Project"),
-            ("exam", "Exam"),
-            ("tips", "Tips"),
-        ] {
-            sqlx::query(
-                "insert into wiki_sections
-                 (id, offering_id, section_key, title, head_version_id, inherited_from_section_id, locked, created_at, updated_at)
-                 values ($1, $2, $3, $4, null, null, false, now(), now())",
-            )
-            .bind(Uuid::new_v4())
-            .bind(offering.id)
-            .bind(key)
-            .bind(title)
-            .execute(&mut **tx)
-            .await?;
-        }
     }
     Ok(())
 }

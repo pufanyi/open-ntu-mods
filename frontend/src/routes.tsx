@@ -152,9 +152,6 @@ function CoursePage() {
               {offering.academic_year} {offering.semester}
             </strong>
             <span>{offering.status}</span>
-            {offering.inherited_from_offering_id && (
-              <small>Copy-on-write inherited page</small>
-            )}
           </Link>
         ))}
       </div>
@@ -210,7 +207,7 @@ function OfferingPage() {
           >
             <div className="card-title">
               <strong>{summary.section.title}</strong>
-              <Badge label={summary.inherited ? "Inherited" : "Local"} />
+              {summary.section.locked && <Badge label="Locked" />}
             </div>
             <p>
               {summary.current_version?.content_markdown.slice(0, 140) ??
@@ -416,6 +413,7 @@ function SectionHistoryPage() {
   const { sectionId } = historyRoute.useParams();
   const [oldId, setOldId] = useState("");
   const [newId, setNewId] = useState("");
+  const [previewId, setPreviewId] = useState("");
   const history = useQuery({
     queryKey: ["section-history", sectionId],
     queryFn: async () =>
@@ -435,6 +433,12 @@ function SectionHistoryPage() {
         }),
       ),
   });
+  const selectedVersion = useMemo(
+    () =>
+      (history.data ?? []).find((item) => item.version.id === previewId) ??
+      history.data?.[0],
+    [history.data, previewId],
+  );
 
   return (
     <section>
@@ -474,6 +478,20 @@ function SectionHistoryPage() {
           ))}
         </div>
       )}
+      {selectedVersion && (
+        <div className="version-preview">
+          <div className="section-heading compact">
+            <div>
+              <p className="eyebrow">
+                {new Date(selectedVersion.version.created_at).toLocaleString()}
+              </p>
+              <h2>Version preview</h2>
+            </div>
+            <small>version {selectedVersion.version.id}</small>
+          </div>
+          <MarkdownView markdown={selectedVersion.version.content_markdown} />
+        </div>
+      )}
       <div className="list">
         {(history.data ?? []).map((item) => (
           <article className="row-card" key={item.version.id}>
@@ -485,6 +503,15 @@ function SectionHistoryPage() {
             <small>
               version {item.version.id} · commit {item.commit.id}
             </small>
+            <div className="action-row">
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => setPreviewId(item.version.id)}
+              >
+                View
+              </button>
+            </div>
           </article>
         ))}
       </div>
@@ -912,12 +939,8 @@ function SectionHeader({ detail }: { detail: SectionDetail }) {
         </p>
         <h1>{detail.section.title}</h1>
         <div className="meta-row">
-          <Badge label={detail.inherited ? "Inherited" : "Local"} />
           {detail.section.locked && <Badge label="Locked" />}
           <span>{detail.verification_count} verification(s)</span>
-          {detail.source_section_id && (
-            <span>source {detail.source_section_id}</span>
-          )}
         </div>
       </div>
     </div>

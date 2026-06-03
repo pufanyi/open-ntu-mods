@@ -1,6 +1,6 @@
 # Open NTU Mods
 
-Open NTU Mods is an MVP course wiki and review site for NTU students. Public course information is collaboratively editable by verified NTU users, while personal reviews remain author-owned. Wiki edits are immutable, academic-year-aware, and revertible.
+Open NTU Mods is an MVP course wiki and review site for NTU students. Public course information is collaboratively editable by verified NTU users, while personal reviews remain author-owned. Wiki pages are academic-year-aware standalone pages with immutable, viewable, and revertible history.
 
 ## Stack
 

@@ -510,8 +510,6 @@ export interface components {
             created_at: string;
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            inherited_from_offering_id?: string | null;
             semester: string;
             status: string;
             /** Format: date-time */
@@ -526,8 +524,6 @@ export interface components {
         };
         CreateOfferingRequest: {
             academic_year: string;
-            /** Format: uuid */
-            inherited_from_offering_id?: string | null;
             semester: string;
         };
         CreateReviewRequest: {
@@ -591,8 +587,6 @@ export interface components {
         HistoryItem: {
             author: components["schemas"]["User"];
             commit: components["schemas"]["WikiCommit"];
-            /** Format: uuid */
-            source_section_id: string;
             version: components["schemas"]["WikiVersion"];
         };
         LockSectionRequest: {
@@ -699,20 +693,14 @@ export interface components {
         SectionDetail: {
             course: components["schemas"]["Course"];
             current_version?: null | components["schemas"]["WikiVersion"];
-            inherited: boolean;
             offering: components["schemas"]["CourseOffering"];
             section: components["schemas"]["WikiSection"];
-            /** Format: uuid */
-            source_section_id?: string | null;
             /** Format: int64 */
             verification_count: number;
         };
         SectionSummary: {
             current_version?: null | components["schemas"]["WikiVersion"];
-            inherited: boolean;
             section: components["schemas"]["WikiSection"];
-            /** Format: uuid */
-            source_section_id?: string | null;
             /** Format: int64 */
             verification_count: number;
         };
@@ -760,9 +748,6 @@ export interface components {
             version_id: string;
         };
         VisibleVersion: {
-            inherited: boolean;
-            /** Format: uuid */
-            source_section_id: string;
             version: components["schemas"]["WikiVersion"];
         };
         WikiCommit: {
@@ -797,8 +782,6 @@ export interface components {
             head_version_id?: string | null;
             /** Format: uuid */
             id: string;
-            /** Format: uuid */
-            inherited_from_section_id?: string | null;
             locked: boolean;
             /** Format: uuid */
             offering_id: string;

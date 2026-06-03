@@ -12,7 +12,7 @@ Railway hosts PostgreSQL and the Rust app. Cloudflare Workers adds security head
 
 ## Data Model
 
-Courses are stable catalog entries. `course_offerings` represent an academic year and semester. Each offering has `wiki_sections`. A section may inherit from a previous offering's section and may have no local `head_version_id` until it is edited.
+Courses are stable catalog entries. `course_offerings` represent an academic year and semester. Each offering has standalone `wiki_sections`. A section points at its current immutable version through `head_version_id`; older versions remain available in section history.
 
 Wiki content is stored through:
 
@@ -30,23 +30,15 @@ This gives the system a durable audit trail and makes revert/restore append-only
 
 ## Edit, Restore, Revert
 
-`POST /api/sections/:id/edit` requires `base_version_id`. The backend resolves the visible version, including inherited content, and returns `409 Conflict` if the visible version differs.
+`POST /api/sections/:id/edit` requires `base_version_id`. The backend compares it with the section's current `head_version_id` and returns `409 Conflict` if the current version differs.
 
-Restore creates a new `wiki_commit` of type `restore`, copies the target version content into a new local version, and records a moderation action.
+Restore creates a new `wiki_commit` of type `restore`, copies the target version content into a new version for that same section, and records a moderation action.
 
 Revert creates a new `wiki_commit` of type `revert`. For MVP it supports normal section edits by copying each changed row's `old_version_id` into a new head version. It does not delete the reverted commit.
 
-## Academic-Year Inheritance
+## Academic-Year Pages
 
-New offerings can point to `inherited_from_offering_id`. Their sections point to previous sections using `inherited_from_section_id`.
-
-Visible content resolution:
-
-1. Use the local section `head_version_id` when present.
-2. Otherwise walk `inherited_from_section_id`.
-3. Display whether content is local or inherited.
-
-Editing an inherited section creates a local version for the new academic-year section, which is the copy-on-write behavior.
+Academic years and semesters are first-class through `course_offerings`, but the MVP does not use cross-year inheritance. A new offering starts with its own standalone section pages. Users can edit the current page and use history to view any prior version for that page.
 
 ## Reviews
 

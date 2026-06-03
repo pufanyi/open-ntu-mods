@@ -24,22 +24,21 @@ pub async fn get_visible_version_conn(
     conn: &mut PgConnection,
     section_id: Uuid,
 ) -> ApiResult<Option<VisibleVersion>> {
-    let chain = section_chain_conn(conn, section_id).await?;
-    for section in chain {
-        if let Some(head_version_id) = section.head_version_id {
-            let version =
-                sqlx::query_as::<_, WikiVersion>("select * from wiki_versions where id = $1")
-                    .bind(head_version_id)
-                    .fetch_one(&mut *conn)
-                    .await?;
-            return Ok(Some(VisibleVersion {
-                inherited: version.section_id != section_id,
-                source_section_id: version.section_id,
-                version,
-            }));
-        }
-    }
-    Ok(None)
+    let section = sqlx::query_as::<_, WikiSection>("select * from wiki_sections where id = $1")
+        .bind(section_id)
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or_else(|| ApiError::NotFound("section not found".into()))?;
+
+    let Some(head_version_id) = section.head_version_id else {
+        return Ok(None);
+    };
+
+    let version = sqlx::query_as::<_, WikiVersion>("select * from wiki_versions where id = $1")
+        .bind(head_version_id)
+        .fetch_one(&mut *conn)
+        .await?;
+    Ok(Some(VisibleVersion { version }))
 }
 
 pub async fn edit_section(
@@ -115,8 +114,9 @@ pub async fn verify_section(
     .ok_or_else(|| ApiError::NotFound("section not found".into()))?;
 
     let version_exists: Option<(Uuid,)> =
-        sqlx::query_as("select id from wiki_versions where id = $1")
+        sqlx::query_as("select id from wiki_versions where id = $1 and section_id = $2")
             .bind(version_id)
+            .bind(section_id)
             .fetch_optional(&mut *tx)
             .await?;
     if version_exists.is_none() {
@@ -165,18 +165,14 @@ pub async fn restore_version(
         return Err(ApiError::Forbidden("section is locked".into()));
     }
 
-    let chain = section_chain_conn(&mut tx, section_id).await?;
-    let allowed_source = chain
-        .iter()
-        .any(|section| section.head_version_id == Some(version_id) || section.id == section_id);
     let target = sqlx::query_as::<_, WikiVersion>("select * from wiki_versions where id = $1")
         .bind(version_id)
         .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| ApiError::NotFound("version not found".into()))?;
-    if !allowed_source && !chain.iter().any(|section| section.id == target.section_id) {
+    if target.section_id != section_id {
         return Err(ApiError::BadRequest(
-            "version does not belong to this section inheritance chain".into(),
+            "version does not belong to this section".into(),
         ));
     }
 
@@ -314,8 +310,15 @@ pub async fn revert_commit(
 
 pub async fn list_history(pool: &PgPool, section_id: Uuid) -> ApiResult<Vec<HistoryItem>> {
     let mut conn = pool.acquire().await?;
-    let chain = section_chain_conn(&mut conn, section_id).await?;
-    let ids: Vec<Uuid> = chain.iter().map(|section| section.id).collect();
+    let section_exists: Option<(Uuid,)> =
+        sqlx::query_as("select id from wiki_sections where id = $1")
+            .bind(section_id)
+            .fetch_optional(&mut *conn)
+            .await?;
+    if section_exists.is_none() {
+        return Err(ApiError::NotFound("section not found".into()));
+    }
+
     let history = sqlx::query_as::<_, HistoryRow>(
         "select
            v.id as version_id,
@@ -344,17 +347,16 @@ pub async fn list_history(pool: &PgPool, section_id: Uuid) -> ApiResult<Vec<Hist
          from wiki_versions v
          join wiki_commits c on c.id = v.commit_id
          join users u on u.id = c.author_user_id
-         where v.section_id = any($1)
+         where v.section_id = $1
          order by v.created_at desc",
     )
-    .bind(&ids)
+    .bind(section_id)
     .fetch_all(&mut *conn)
     .await?;
 
     Ok(history
         .into_iter()
         .map(|row| HistoryItem {
-            source_section_id: row.section_id,
             version: row.version(),
             commit: row.commit(),
             author: row.author(),
@@ -474,29 +476,6 @@ async fn verification_count_tx(
     .await?
     .0;
     Ok(count)
-}
-
-async fn section_chain_conn(
-    conn: &mut PgConnection,
-    section_id: Uuid,
-) -> ApiResult<Vec<WikiSection>> {
-    let mut chain = Vec::new();
-    let mut next_id = Some(section_id);
-    for _ in 0..32 {
-        let Some(id) = next_id else {
-            return Ok(chain);
-        };
-        let section = sqlx::query_as::<_, WikiSection>("select * from wiki_sections where id = $1")
-            .bind(id)
-            .fetch_optional(&mut *conn)
-            .await?
-            .ok_or_else(|| ApiError::NotFound("section not found".into()))?;
-        next_id = section.inherited_from_section_id;
-        chain.push(section);
-    }
-    Err(ApiError::Internal(
-        "section inheritance chain exceeded maximum depth".into(),
-    ))
 }
 
 async fn lock_section(

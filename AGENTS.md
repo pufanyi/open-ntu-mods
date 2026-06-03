@@ -14,9 +14,9 @@ Project guidance for agents working on `open-ntu-mods`.
 
 ## Project Overview
 
-- Product: NTU course wiki/review MVP with academic-year-aware offerings,
-  copy-on-write wiki inheritance, immutable wiki versions, author-owned reviews,
-  and moderation/admin workflows.
+- Product: NTU course wiki/review MVP with academic-year-aware standalone
+  offerings, immutable wiki versions, author-owned reviews, and
+  moderation/admin workflows.
 - Backend: Rust, Axum, PostgreSQL, SQLx, tower-http, tracing, cookie sessions,
   Microsoft Entra OIDC structure, dev-login for local/staging only, Utoipa
   OpenAPI.

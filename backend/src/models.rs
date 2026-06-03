@@ -37,6 +37,8 @@ pub struct CourseOffering {
     pub academic_year: String,
     pub semester: String,
     pub status: String,
+    #[serde(skip_serializing, skip_deserializing)]
+    #[schema(ignore)]
     pub inherited_from_offering_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -49,6 +51,8 @@ pub struct WikiSection {
     pub section_key: String,
     pub title: String,
     pub head_version_id: Option<Uuid>,
+    #[serde(skip_serializing, skip_deserializing)]
+    #[schema(ignore)]
     pub inherited_from_section_id: Option<Uuid>,
     pub locked: bool,
     pub created_at: DateTime<Utc>,
@@ -165,7 +169,6 @@ pub struct CreateCourseRequest {
 pub struct CreateOfferingRequest {
     pub academic_year: String,
     pub semester: String,
-    pub inherited_from_offering_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -177,16 +180,12 @@ pub struct OfferingWithCourse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct VisibleVersion {
     pub version: WikiVersion,
-    pub source_section_id: Uuid,
-    pub inherited: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SectionSummary {
     pub section: WikiSection,
     pub current_version: Option<WikiVersion>,
-    pub source_section_id: Option<Uuid>,
-    pub inherited: bool,
     pub verification_count: i64,
 }
 
@@ -196,8 +195,6 @@ pub struct SectionDetail {
     pub offering: CourseOffering,
     pub course: Course,
     pub current_version: Option<WikiVersion>,
-    pub source_section_id: Option<Uuid>,
-    pub inherited: bool,
     pub verification_count: i64,
 }
 
@@ -233,7 +230,6 @@ pub struct HistoryItem {
     pub version: WikiVersion,
     pub commit: WikiCommit,
     pub author: User,
-    pub source_section_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
