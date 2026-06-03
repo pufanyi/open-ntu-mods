@@ -143,6 +143,11 @@ backend/Dockerfile
   production origin is intentionally moved into version-controlled config.
 - Do not run `wrangler deploy` from the repository root. Use
   `pnpm deploy:worker` from the root or run `pnpm deploy` inside `worker/`.
+- Worker caching is intentionally narrow: `/assets/*` is cached long-term as
+  immutable Vite build output; anonymous public GETs under `/api/courses`,
+  `/api/offerings`, and `/api/sections` are cached briefly; requests with
+  cookies bypass API caching so logged-in edits and moderation actions see
+  fresh data.
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
 - Set `RUN_MIGRATIONS_ON_STARTUP=true` on Railway for the MVP deployment so the
   backend applies SQLx migrations before serving traffic.

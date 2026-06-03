@@ -108,6 +108,15 @@ pnpm deploy
 
 Route your public domain to the Worker. The Worker forwards the origin secret to Railway and adds security headers.
 
+The Worker caches only safe public reads:
+
+- `/assets/*` Vite build assets are cached long-term because filenames are
+  content-hashed.
+- Anonymous `GET /api/courses*`, `GET /api/offerings*`, and
+  `GET /api/sections*` responses are cached briefly at the edge.
+- Requests with cookies bypass API caching so logged-in users see fresh content
+  after edits, review changes, and moderation actions.
+
 ## Backups
 
 Use Railway PostgreSQL backups plus periodic logical dumps. Keep at least one recent backup outside the primary Railway project for disaster recovery.
