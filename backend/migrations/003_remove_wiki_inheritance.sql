@@ -104,7 +104,7 @@ inserted_version as (
     target.old_version_id,
     'SC2001 AY2025/26 Sem 1 is a standalone demo course page. Students can edit this page and use history to view earlier versions.',
     null,
-    encode(digest('SC2001 AY2025/26 Sem 1 is a standalone demo course page. Students can edit this page and use history to view earlier versions.' || chr(0), 'sha256'), 'hex'),
+    'ce836b083ee3a12971e9587b14c455edb51b4a0d413e21e924ba5f4d0b06a050',
     now()
   from target
   cross join commit_row
