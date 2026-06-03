@@ -39,9 +39,12 @@ function Layout() {
           <Link to="/">Courses</Link>
           <Link to="/admin">Admin</Link>
           {me.data?.user ? (
-            <button type="button" onClick={() => logout.mutate()}>
-              Logout
-            </button>
+            <>
+              <Link to="/account">Account</Link>
+              <button type="button" onClick={() => logout.mutate()}>
+                Logout
+              </button>
+            </>
           ) : (
             <Link to="/login">Login</Link>
           )}
@@ -861,31 +864,51 @@ function AdminPage() {
 function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [role, setRole] = useState("verified_user");
-  const startEmailLogin = useMutation({
-    mutationFn: async () =>
-      unwrap(
-        await api.POST("/auth/email/start", {
+  const startAuth = useMutation({
+    mutationFn: async () => {
+      if (mode === "register") {
+        return unwrap(
+          await api.POST("/auth/register/start", {
+            body: { email },
+          }),
+        );
+      }
+      return unwrap(
+        await api.POST("/auth/login/start", {
           body: { email },
         }),
-      ),
-    onSuccess: () => setCodeSent(true),
+      );
+    },
+    onSuccess: () => {
+      setCode("");
+      setCodeSent(true);
+    },
   });
-  const verifyEmailLogin = useMutation({
-    mutationFn: async () =>
-      unwrap(
-        await api.POST("/auth/email/verify", {
-          body: {
-            email,
-            code,
-            display_name: displayName.trim() ? displayName : null,
-          },
+  const verifyAuth = useMutation({
+    mutationFn: async () => {
+      if (mode === "register") {
+        return unwrap(
+          await api.POST("/auth/register/verify", {
+            body: {
+              email,
+              code,
+              display_name: displayName.trim() ? displayName : null,
+            },
+          }),
+        );
+      }
+      return unwrap(
+        await api.POST("/auth/login/verify", {
+          body: { email, code },
         }),
-      ),
+      );
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       navigate({ to: "/" });
@@ -906,37 +929,66 @@ function LoginPage() {
 
   return (
     <section className="login">
-      <h1>Login</h1>
+      <h1>{mode === "register" ? "Register" : "Login"}</h1>
       <form
         onSubmit={(event) => {
           event.preventDefault();
           if (codeSent) {
-            verifyEmailLogin.mutate();
+            verifyAuth.mutate();
           } else {
-            startEmailLogin.mutate();
+            startAuth.mutate();
           }
         }}
       >
-        <h2>Email code</h2>
+        <div className="tabs" role="tablist" aria-label="Auth mode">
+          <button
+            className={mode === "login" ? "" : "secondary"}
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setCode("");
+              setCodeSent(false);
+            }}
+          >
+            Login
+          </button>
+          <button
+            className={mode === "register" ? "" : "secondary"}
+            type="button"
+            onClick={() => {
+              setMode("register");
+              setCode("");
+              setCodeSent(false);
+            }}
+          >
+            Register
+          </button>
+        </div>
         <label>
           Email
           <input
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setCode("");
+              setCodeSent(false);
+            }}
             placeholder="you@example.com"
             autoComplete="email"
           />
         </label>
-        <label>
-          Display name
-          <input
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Optional"
-            autoComplete="name"
-          />
-        </label>
+        {mode === "register" && (
+          <label>
+            Display name
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Optional"
+              autoComplete="name"
+            />
+          </label>
+        )}
         {codeSent && (
           <label>
             6-digit code
@@ -951,22 +1003,24 @@ function LoginPage() {
           </label>
         )}
         {codeSent && (
-          <p className="muted">
-            Code sent. In log delivery mode, check the backend logs.
-          </p>
+          <p className="muted">Code sent. It expires in 10 minutes.</p>
         )}
-        {startEmailLogin.error && (
-          <p className="error">{errorMessage(startEmailLogin.error)}</p>
+        {startAuth.error && (
+          <p className="error">{errorMessage(startAuth.error)}</p>
         )}
-        {verifyEmailLogin.error && (
-          <p className="error">{errorMessage(verifyEmailLogin.error)}</p>
+        {verifyAuth.error && (
+          <p className="error">{errorMessage(verifyAuth.error)}</p>
         )}
         <div className="action-row">
           <button
             type="submit"
-            disabled={startEmailLogin.isPending || verifyEmailLogin.isPending}
+            disabled={startAuth.isPending || verifyAuth.isPending}
           >
-            {codeSent ? "Verify and login" : "Send code"}
+            {codeSent
+              ? mode === "register"
+                ? "Create account"
+                : "Login"
+              : "Send code"}
           </button>
           {codeSent && (
             <button
@@ -974,9 +1028,9 @@ function LoginPage() {
               type="button"
               onClick={() => {
                 setCode("");
-                startEmailLogin.mutate();
+                startAuth.mutate();
               }}
-              disabled={startEmailLogin.isPending}
+              disabled={startAuth.isPending}
             >
               Resend
             </button>
@@ -1025,6 +1079,125 @@ function LoginPage() {
           </button>
         </form>
       )}
+    </section>
+  );
+}
+
+function AccountPage() {
+  const me = useMe();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [displayName, setDisplayName] = useState("");
+  const sessions = useQuery({
+    queryKey: ["account-sessions"],
+    enabled: Boolean(me.data?.user),
+    queryFn: async () => unwrap(await api.GET("/api/account/sessions")),
+  });
+
+  useEffect(() => {
+    if (me.data?.user) {
+      setDisplayName(me.data.user.display_name ?? "");
+    }
+  }, [me.data?.user]);
+
+  const updateProfile = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.PUT("/api/account/profile", {
+          body: { display_name: displayName.trim() ? displayName : null },
+        }),
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+  });
+
+  const logoutAll = useMutation({
+    mutationFn: async () => {
+      const result = await api.POST("/api/account/logout-all");
+      if (result.error) {
+        throw new ApiClientError(result.response.status, result.error);
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      navigate({ to: "/login" });
+    },
+  });
+
+  if (me.isLoading) {
+    return <p className="muted">Loading...</p>;
+  }
+  if (!me.data?.user) {
+    return (
+      <section>
+        <h1>Account</h1>
+        <p>
+          <Link to="/login">Login</Link> to manage your account.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{me.data.user.role}</p>
+          <h1>Account</h1>
+        </div>
+      </div>
+      <div className="account-grid">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            updateProfile.mutate();
+          }}
+        >
+          <h2>Profile</h2>
+          <p className="muted">{me.data.user.email}</p>
+          <label>
+            Display name
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              autoComplete="name"
+            />
+          </label>
+          {updateProfile.error && (
+            <p className="error">{errorMessage(updateProfile.error)}</p>
+          )}
+          <button type="submit" disabled={updateProfile.isPending}>
+            Save profile
+          </button>
+        </form>
+        <div className="account-panel">
+          <h2>Sessions</h2>
+          <QueryState query={sessions} />
+          <div className="list">
+            {(sessions.data ?? []).map((session) => (
+              <article className="row-card" key={session.id}>
+                <strong>Active session</strong>
+                <small>
+                  Created {new Date(session.created_at).toLocaleString()} ·
+                  Expires {new Date(session.expires_at).toLocaleString()}
+                </small>
+              </article>
+            ))}
+          </div>
+          {logoutAll.error && (
+            <p className="error">{errorMessage(logoutAll.error)}</p>
+          )}
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => logoutAll.mutate()}
+            disabled={logoutAll.isPending}
+          >
+            Logout all sessions
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1278,6 +1451,11 @@ const loginRoute = createRoute({
   path: "/login",
   component: LoginPage,
 });
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/account",
+  component: AccountPage,
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -1289,6 +1467,7 @@ const routeTree = rootRoute.addChildren([
   reviewsRoute,
   adminRoute,
   loginRoute,
+  accountRoute,
 ]);
 
 export const router = createRouter({ routeTree });

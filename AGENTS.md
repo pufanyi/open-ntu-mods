@@ -165,6 +165,12 @@ backend/Dockerfile
 - Email login stores only hashed one-time codes in PostgreSQL. In `log` mode,
   the plaintext code appears in backend logs, so keep that mode limited to
   controlled testing.
+- Register and login are distinct email-code flows. Use
+  `/auth/register/start` + `/auth/register/verify` for new accounts and
+  `/auth/login/start` + `/auth/login/verify` for existing accounts. The legacy
+  `/auth/email/*` combined endpoints remain for compatibility.
+- Account self-management endpoints live under `/api/account/*` for profile
+  updates, active session listing, and logout-all.
 - `ENABLE_DEV_LOGIN=true` is acceptable for local development and tightly
   controlled staging only. Keep it `false` for public production unless an
   explicit temporary testing plan is in place.

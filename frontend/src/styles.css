@@ -186,7 +186,8 @@ h2 {
 .card-title,
 .meta-row,
 .action-row,
-.compare {
+.compare,
+.tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -223,13 +224,22 @@ h2 {
 .editor,
 .review-form,
 .login form,
-.admin-panel {
+.admin-panel,
+.account-grid form,
+.account-panel {
   display: grid;
   gap: 14px;
   border: 1px solid #d8dee6;
   border-radius: 8px;
   background: white;
   padding: 16px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
 label {
@@ -296,8 +306,13 @@ label {
 
   .nav,
   .action-row,
-  .compare {
+  .compare,
+  .tabs {
     align-items: stretch;
+  }
+
+  .account-grid {
+    grid-template-columns: 1fr;
   }
 
   .section-heading input {

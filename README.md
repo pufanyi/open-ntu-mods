@@ -29,9 +29,9 @@ pnpm --filter frontend dev
 
 Open `http://localhost:5173`. In local development, use the dev-login form and
 select `verified_user`, `moderator`, or `admin` for role testing. The regular
-login page also supports email codes; with `EMAIL_LOGIN_DELIVERY=log`, codes are
-printed in backend logs. Seed data includes demo SC2001 offerings and demo users
-only.
+login page supports separate register and login email-code flows; with
+`EMAIL_LOGIN_DELIVERY=log`, codes are printed in backend logs. Seed data
+includes demo SC2001 offerings and demo users only.
 
 For Railway deployments, set `RUN_MIGRATIONS_ON_STARTUP=true` on the backend
 service so SQLx migrations run before the app serves traffic. Local `sqlx`

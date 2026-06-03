@@ -8,15 +8,22 @@ pnpm --filter frontend generate:api
 
 ## Auth
 
-- `POST /auth/email/start`: sends a 6-digit email login code.
-- `POST /auth/email/verify`: verifies the code and creates a local session.
+- `POST /auth/register/start`: sends a 6-digit registration code.
+- `POST /auth/register/verify`: verifies the registration code, creates the account, and creates a local session.
+- `POST /auth/login/start`: sends a 6-digit login code for an existing account.
+- `POST /auth/login/verify`: verifies the login code and creates a local session.
+- `POST /auth/email/start`: legacy combined email-code start endpoint.
+- `POST /auth/email/verify`: legacy combined email-code verify endpoint.
 - `POST /auth/dev-login`: local-only login when `ENABLE_DEV_LOGIN=true`.
 - `POST /auth/logout`: deletes the current session.
 - `GET /api/me`: returns the current user or `null`.
+- `PUT /api/account/profile`: updates the current user's display name.
+- `GET /api/account/sessions`: lists active sessions for the current account.
+- `POST /api/account/logout-all`: deletes all sessions for the current account.
 
 Sessions are cookie-based. The cookie is httpOnly, SameSite=Lax, secure when `COOKIE_SECURE=true`, and only a hash of the session token is stored in PostgreSQL.
 
-Email login start request:
+Register start request:
 
 ```json
 {
@@ -24,13 +31,30 @@ Email login start request:
 }
 ```
 
-Email login verify request:
+Register verify request:
 
 ```json
 {
   "email": "student@e.ntu.edu.sg",
   "code": "123456",
   "display_name": "Demo Student"
+}
+```
+
+Login start request:
+
+```json
+{
+  "email": "student@e.ntu.edu.sg"
+}
+```
+
+Login verify request:
+
+```json
+{
+  "email": "student@e.ntu.edu.sg",
+  "code": "123456"
 }
 ```
 

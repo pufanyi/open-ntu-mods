@@ -26,8 +26,9 @@ use crate::{
     config::Config,
     error::{ApiError, ApiResult},
     models::{
-        DevLoginRequest, EmailLoginStartRequest, EmailLoginStartResponse, EmailLoginVerifyRequest,
-        LoginResponse, MeResponse, User,
+        AccountSession, DevLoginRequest, EmailLoginStartRequest, EmailLoginStartResponse,
+        EmailLoginVerifyRequest, LoginResponse, LoginStartRequest, LoginVerifyRequest, MeResponse,
+        RegisterStartRequest, RegisterVerifyRequest, UpdateAccountRequest, User,
     },
 };
 
@@ -35,6 +36,9 @@ pub const SESSION_COOKIE: &str = "ntu_session";
 const EMAIL_CODE_TTL_MINUTES: i64 = 10;
 const EMAIL_CODE_MAX_REQUESTS_PER_WINDOW: i64 = 5;
 const EMAIL_CODE_MAX_VERIFY_ATTEMPTS: i32 = 5;
+const EMAIL_PURPOSE_LEGACY: &str = "email";
+const EMAIL_PURPOSE_LOGIN: &str = "login";
+const EMAIL_PURPOSE_REGISTER: &str = "register";
 
 #[derive(Clone, Debug)]
 pub struct CurrentUser(pub Option<User>);
@@ -160,54 +164,7 @@ pub async fn email_login_start(
     State(state): State<AppState>,
     Json(request): Json<EmailLoginStartRequest>,
 ) -> ApiResult<Json<EmailLoginStartResponse>> {
-    if !state.config.email_login_enabled {
-        return Err(ApiError::Forbidden("email login is disabled".into()));
-    }
-
-    let email = normalize_email(&request.email)?;
-    if !state.config.email_login_domain_allowed(&email) {
-        return Err(ApiError::Forbidden("email domain is not allowed".into()));
-    }
-
-    let recent_count: (i64,) = sqlx::query_as(
-        "select count(*)
-         from email_login_codes
-         where lower(email) = $1 and created_at > now() - interval '10 minutes'",
-    )
-    .bind(&email)
-    .fetch_one(&state.pool)
-    .await?;
-    if recent_count.0 >= EMAIL_CODE_MAX_REQUESTS_PER_WINDOW {
-        return Err(ApiError::TooManyRequests(
-            "too many login codes requested; try again later".into(),
-        ));
-    }
-
-    sqlx::query("delete from email_login_codes where expires_at < now() - interval '1 day'")
-        .execute(&state.pool)
-        .await?;
-
-    let code = random_email_code();
-    let code_hash = hash_email_code(&state.config, &email, &code);
-    let expires_at = Utc::now() + chrono::Duration::minutes(EMAIL_CODE_TTL_MINUTES);
-    sqlx::query(
-        "insert into email_login_codes
-         (id, email, code_hash, expires_at, created_at)
-         values ($1, $2, $3, $4, now())",
-    )
-    .bind(Uuid::new_v4())
-    .bind(&email)
-    .bind(code_hash)
-    .bind(expires_at)
-    .execute(&state.pool)
-    .await?;
-
-    send_email_code(&state.config, &email, &code).await?;
-
-    Ok(Json(EmailLoginStartResponse {
-        sent: true,
-        expires_in_seconds: EMAIL_CODE_TTL_MINUTES * 60,
-    }))
+    start_email_code(&state, &request.email, EMAIL_PURPOSE_LEGACY).await
 }
 
 #[utoipa::path(
@@ -226,54 +183,85 @@ pub async fn email_login_verify(
     State(state): State<AppState>,
     Json(request): Json<EmailLoginVerifyRequest>,
 ) -> ApiResult<Response> {
-    if !state.config.email_login_enabled {
-        return Err(ApiError::Forbidden("email login is disabled".into()));
-    }
-
-    let email = normalize_email(&request.email)?;
-    if !state.config.email_login_domain_allowed(&email) {
-        return Err(ApiError::Forbidden("email domain is not allowed".into()));
-    }
-
-    let code = normalize_code(&request.code)?;
-    let mut tx = state.pool.begin().await?;
-    let latest_code = sqlx::query_as::<_, (Uuid, String, i32)>(
-        "select id, code_hash, attempts
-         from email_login_codes
-         where lower(email) = $1
-           and consumed_at is null
-           and expires_at > now()
-         order by created_at desc
-         limit 1
-         for update",
+    let email =
+        consume_email_code(&state, &request.email, &request.code, EMAIL_PURPOSE_LEGACY).await?;
+    let user = upsert_user(
+        &state.pool,
+        "email",
+        Some("email"),
+        Some(&email),
+        &email,
+        request.display_name.as_deref(),
+        None,
     )
-    .bind(&email)
-    .fetch_optional(&mut *tx)
     .await?;
+    let cookie = create_session_cookie(&state.pool, &state.config, user.id).await?;
 
-    let Some((code_id, expected_hash, attempts)) = latest_code else {
-        return Err(ApiError::BadRequest("invalid or expired login code".into()));
-    };
-    if attempts >= EMAIL_CODE_MAX_VERIFY_ATTEMPTS {
-        return Err(ApiError::TooManyRequests(
-            "too many incorrect login code attempts".into(),
-        ));
+    let mut response = (StatusCode::OK, Json(LoginResponse { user })).into_response();
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+    Ok(response)
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/register/start",
+    request_body = RegisterStartRequest,
+    responses(
+        (status = 200, body = EmailLoginStartResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 409, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 503, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn register_start(
+    State(state): State<AppState>,
+    Json(request): Json<RegisterStartRequest>,
+) -> ApiResult<Json<EmailLoginStartResponse>> {
+    let email = normalize_email(&request.email)?;
+    ensure_email_auth_enabled_and_allowed(&state, &email)?;
+    if email_account_exists(&state.pool, &email).await? {
+        return Err(ApiError::Conflict {
+            message: "account already exists; log in instead".into(),
+            details: None,
+        });
     }
+    start_email_code_for_normalized_email(&state, &email, EMAIL_PURPOSE_REGISTER).await
+}
 
-    if hash_email_code(&state.config, &email, &code) != expected_hash {
-        sqlx::query("update email_login_codes set attempts = attempts + 1 where id = $1")
-            .bind(code_id)
-            .execute(&mut *tx)
-            .await?;
-        tx.commit().await?;
-        return Err(ApiError::BadRequest("invalid or expired login code".into()));
+#[utoipa::path(
+    post,
+    path = "/auth/register/verify",
+    request_body = RegisterVerifyRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 409, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn register_verify(
+    State(state): State<AppState>,
+    Json(request): Json<RegisterVerifyRequest>,
+) -> ApiResult<Response> {
+    let email = consume_email_code(
+        &state,
+        &request.email,
+        &request.code,
+        EMAIL_PURPOSE_REGISTER,
+    )
+    .await?;
+    if email_account_exists(&state.pool, &email).await? {
+        return Err(ApiError::Conflict {
+            message: "account already exists; log in instead".into(),
+            details: None,
+        });
     }
-
-    sqlx::query("update email_login_codes set consumed_at = now() where id = $1")
-        .bind(code_id)
-        .execute(&mut *tx)
-        .await?;
-    tx.commit().await?;
 
     let user = upsert_user(
         &state.pool,
@@ -296,6 +284,66 @@ pub async fn email_login_verify(
 
 #[utoipa::path(
     post,
+    path = "/auth/login/start",
+    request_body = LoginStartRequest,
+    responses(
+        (status = 200, body = EmailLoginStartResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 404, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 503, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn login_start(
+    State(state): State<AppState>,
+    Json(request): Json<LoginStartRequest>,
+) -> ApiResult<Json<EmailLoginStartResponse>> {
+    let email = normalize_email(&request.email)?;
+    ensure_email_auth_enabled_and_allowed(&state, &email)?;
+    if !email_account_exists(&state.pool, &email).await? {
+        return Err(ApiError::NotFound(
+            "account not found; register first".into(),
+        ));
+    }
+    start_email_code_for_normalized_email(&state, &email, EMAIL_PURPOSE_LOGIN).await
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/login/verify",
+    request_body = LoginVerifyRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 404, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn login_verify(
+    State(state): State<AppState>,
+    Json(request): Json<LoginVerifyRequest>,
+) -> ApiResult<Response> {
+    let email =
+        consume_email_code(&state, &request.email, &request.code, EMAIL_PURPOSE_LOGIN).await?;
+    let Some(user) = find_email_user(&state.pool, &email).await? else {
+        return Err(ApiError::NotFound(
+            "account not found; register first".into(),
+        ));
+    };
+    let cookie = create_session_cookie(&state.pool, &state.config, user.id).await?;
+
+    let mut response = (StatusCode::OK, Json(LoginResponse { user })).into_response();
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+    Ok(response)
+}
+
+#[utoipa::path(
+    post,
     path = "/auth/logout",
     responses((status = 204), (status = 500, body = crate::error::ErrorEnvelope))
 )]
@@ -307,6 +355,99 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiRes
             .execute(&state.pool)
             .await?;
     }
+
+    let mut cookie = Cookie::new(SESSION_COOKIE, "");
+    cookie.set_path("/");
+    cookie.set_http_only(true);
+    cookie.set_secure(state.config.cookie_secure);
+    cookie.set_same_site(SameSite::Lax);
+    cookie.set_max_age(CookieDuration::seconds(0));
+
+    let mut response = StatusCode::NO_CONTENT.into_response();
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+    Ok(response)
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/account/profile",
+    request_body = UpdateAccountRequest,
+    responses(
+        (status = 200, body = User),
+        (status = 401, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn update_account_profile(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Json(request): Json<UpdateAccountRequest>,
+) -> ApiResult<Json<User>> {
+    let user = current_user.0.ok_or(ApiError::Unauthorized)?;
+    let display_name = request
+        .display_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let updated = sqlx::query_as::<_, User>(
+        "update users
+         set display_name = $2, updated_at = now()
+         where id = $1
+         returning *",
+    )
+    .bind(user.id)
+    .bind(display_name)
+    .fetch_one(&state.pool)
+    .await?;
+    Ok(Json(updated))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/account/sessions",
+    responses(
+        (status = 200, body = Vec<AccountSession>),
+        (status = 401, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn list_account_sessions(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> ApiResult<Json<Vec<AccountSession>>> {
+    let user = current_user.0.ok_or(ApiError::Unauthorized)?;
+    let sessions = sqlx::query_as::<_, AccountSession>(
+        "select id, created_at, expires_at
+         from sessions
+         where user_id = $1 and expires_at > now()
+         order by created_at desc",
+    )
+    .bind(user.id)
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(sessions))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/account/logout-all",
+    responses(
+        (status = 204),
+        (status = 401, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn logout_all_sessions(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> ApiResult<Response> {
+    let user = current_user.0.ok_or(ApiError::Unauthorized)?;
+    sqlx::query("delete from sessions where user_id = $1")
+        .bind(user.id)
+        .execute(&state.pool)
+        .await?;
 
     let mut cookie = Cookie::new(SESSION_COOKIE, "");
     cookie.set_path("/");
@@ -404,6 +545,35 @@ pub async fn find_user_by_session(
     .fetch_optional(pool)
     .await?;
     Ok(user)
+}
+
+async fn find_email_user(pool: &PgPool, email: &str) -> ApiResult<Option<User>> {
+    let user = sqlx::query_as::<_, User>(
+        "select *
+         from users
+         where provider = 'email'
+           and provider_tenant_id = 'email'
+           and provider_user_id = $1",
+    )
+    .bind(email)
+    .fetch_optional(pool)
+    .await?;
+    Ok(user)
+}
+
+async fn email_account_exists(pool: &PgPool, email: &str) -> ApiResult<bool> {
+    let exists: (bool,) = sqlx::query_as(
+        "select exists(
+           select 1 from users
+           where provider = 'email'
+             and provider_tenant_id = 'email'
+             and provider_user_id = $1
+         )",
+    )
+    .bind(email)
+    .fetch_one(pool)
+    .await?;
+    Ok(exists.0)
 }
 
 pub async fn upsert_user(
@@ -566,6 +736,126 @@ fn normalize_code(code: &str) -> ApiResult<String> {
         return Err(ApiError::BadRequest("login code must be 6 digits".into()));
     }
     Ok(code.to_string())
+}
+
+fn ensure_email_auth_enabled_and_allowed(state: &AppState, email: &str) -> ApiResult<()> {
+    if !state.config.email_login_enabled {
+        return Err(ApiError::Forbidden("email login is disabled".into()));
+    }
+    if !state.config.email_login_domain_allowed(email) {
+        return Err(ApiError::Forbidden("email domain is not allowed".into()));
+    }
+    Ok(())
+}
+
+async fn start_email_code(
+    state: &AppState,
+    email: &str,
+    purpose: &str,
+) -> ApiResult<Json<EmailLoginStartResponse>> {
+    let email = normalize_email(email)?;
+    ensure_email_auth_enabled_and_allowed(state, &email)?;
+    start_email_code_for_normalized_email(state, &email, purpose).await
+}
+
+async fn start_email_code_for_normalized_email(
+    state: &AppState,
+    email: &str,
+    purpose: &str,
+) -> ApiResult<Json<EmailLoginStartResponse>> {
+    let recent_count: (i64,) = sqlx::query_as(
+        "select count(*)
+         from email_login_codes
+         where lower(email) = $1 and created_at > now() - interval '10 minutes'",
+    )
+    .bind(email)
+    .fetch_one(&state.pool)
+    .await?;
+    if recent_count.0 >= EMAIL_CODE_MAX_REQUESTS_PER_WINDOW {
+        return Err(ApiError::TooManyRequests(
+            "too many login codes requested; try again later".into(),
+        ));
+    }
+
+    sqlx::query("delete from email_login_codes where expires_at < now() - interval '1 day'")
+        .execute(&state.pool)
+        .await?;
+
+    let code = random_email_code();
+    let code_hash = hash_email_code(&state.config, email, &code);
+    let expires_at = Utc::now() + chrono::Duration::minutes(EMAIL_CODE_TTL_MINUTES);
+    sqlx::query(
+        "insert into email_login_codes
+         (id, email, purpose, code_hash, expires_at, created_at)
+         values ($1, $2, $3, $4, $5, now())",
+    )
+    .bind(Uuid::new_v4())
+    .bind(email)
+    .bind(purpose)
+    .bind(code_hash)
+    .bind(expires_at)
+    .execute(&state.pool)
+    .await?;
+
+    send_email_code(&state.config, email, &code).await?;
+
+    Ok(Json(EmailLoginStartResponse {
+        sent: true,
+        expires_in_seconds: EMAIL_CODE_TTL_MINUTES * 60,
+    }))
+}
+
+async fn consume_email_code(
+    state: &AppState,
+    email: &str,
+    code: &str,
+    purpose: &str,
+) -> ApiResult<String> {
+    let email = normalize_email(email)?;
+    ensure_email_auth_enabled_and_allowed(state, &email)?;
+
+    let code = normalize_code(code)?;
+    let mut tx = state.pool.begin().await?;
+    let latest_code = sqlx::query_as::<_, (Uuid, String, i32)>(
+        "select id, code_hash, attempts
+         from email_login_codes
+         where lower(email) = $1
+           and purpose = $2
+           and consumed_at is null
+           and expires_at > now()
+         order by created_at desc
+         limit 1
+         for update",
+    )
+    .bind(&email)
+    .bind(purpose)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some((code_id, expected_hash, attempts)) = latest_code else {
+        return Err(ApiError::BadRequest("invalid or expired login code".into()));
+    };
+    if attempts >= EMAIL_CODE_MAX_VERIFY_ATTEMPTS {
+        return Err(ApiError::TooManyRequests(
+            "too many incorrect login code attempts".into(),
+        ));
+    }
+
+    if hash_email_code(&state.config, &email, &code) != expected_hash {
+        sqlx::query("update email_login_codes set attempts = attempts + 1 where id = $1")
+            .bind(code_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        return Err(ApiError::BadRequest("invalid or expired login code".into()));
+    }
+
+    sqlx::query("update email_login_codes set consumed_at = now() where id = $1")
+        .bind(code_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(email)
 }
 
 async fn send_email_code(config: &Config, email: &str, code: &str) -> ApiResult<()> {

@@ -171,8 +171,43 @@ pub struct EmailLoginVerifyRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RegisterStartRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RegisterVerifyRequest {
+    pub email: String,
+    pub code: String,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct LoginStartRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct LoginVerifyRequest {
+    pub email: String,
+    pub code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct LoginResponse {
     pub user: User,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UpdateAccountRequest {
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct AccountSession {
+    pub id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

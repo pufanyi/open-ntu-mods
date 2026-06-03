@@ -47,8 +47,15 @@ pub struct AppState {
         auth::me,
         auth::email_login_start,
         auth::email_login_verify,
+        auth::register_start,
+        auth::register_verify,
+        auth::login_start,
+        auth::login_verify,
         auth::dev_login,
         auth::logout,
+        auth::update_account_profile,
+        auth::list_account_sessions,
+        auth::logout_all_sessions,
         api::list_courses,
         api::create_course,
         api::get_course,
@@ -96,7 +103,13 @@ pub struct AppState {
         models::EmailLoginStartRequest,
         models::EmailLoginStartResponse,
         models::EmailLoginVerifyRequest,
+        models::RegisterStartRequest,
+        models::RegisterVerifyRequest,
+        models::LoginStartRequest,
+        models::LoginVerifyRequest,
         models::LoginResponse,
+        models::UpdateAccountRequest,
+        models::AccountSession,
         models::CreateCourseRequest,
         models::CreateOfferingRequest,
         models::OfferingWithCourse,
@@ -172,9 +185,16 @@ pub fn build_app(state: AppState) -> Router {
         .route("/openapi.json", get(openapi_json))
         .route("/auth/email/start", post(auth::email_login_start))
         .route("/auth/email/verify", post(auth::email_login_verify))
+        .route("/auth/register/start", post(auth::register_start))
+        .route("/auth/register/verify", post(auth::register_verify))
+        .route("/auth/login/start", post(auth::login_start))
+        .route("/auth/login/verify", post(auth::login_verify))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/dev-login", post(auth::dev_login))
         .route("/api/me", get(auth::me))
+        .route("/api/account/profile", put(auth::update_account_profile))
+        .route("/api/account/sessions", get(auth::list_account_sessions))
+        .route("/api/account/logout-all", post(auth::logout_all_sessions))
         .route(
             "/api/courses",
             get(api::list_courses).post(api::create_course),

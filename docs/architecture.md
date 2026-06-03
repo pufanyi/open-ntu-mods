@@ -16,6 +16,9 @@ Authentication uses email verification codes plus local cookie sessions. The
 backend stores only hashed session tokens and hashed one-time email codes.
 `EMAIL_LOGIN_DELIVERY=log` prints codes to backend logs for early testing;
 `EMAIL_LOGIN_DELIVERY=resend` sends real email through Resend.
+Register and login have separate endpoints and separate email-code purposes, so
+a registration code cannot be used as a login code. The legacy `/auth/email/*`
+combined endpoints remain for compatibility.
 
 ## Data Model
 
