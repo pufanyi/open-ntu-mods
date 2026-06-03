@@ -42,6 +42,10 @@ Use dev login with:
 
 Seed data includes SC2001 Algorithm Design and Analysis, AY2024/25 Sem 1, AY2025/26 Sem 1, standalone wiki sections, and one demo review. It does not include real NTU materials.
 
+The regular email-code login works locally too. With the default
+`EMAIL_LOGIN_DELIVERY=log`, request a code from `/login` and read it from the
+backend terminal output.
+
 ## Manual Vertical Slice
 
 1. Login as `student@e.ntu.edu.sg`.

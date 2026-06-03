@@ -18,8 +18,7 @@ Project guidance for agents working on `open-ntu-mods`.
   offerings, immutable wiki versions, author-owned reviews, and
   moderation/admin workflows.
 - Backend: Rust, Axum, PostgreSQL, SQLx, tower-http, tracing, cookie sessions,
-  Microsoft Entra OIDC structure, dev-login for local/staging only, Utoipa
-  OpenAPI.
+  email-code login, dev-login for local/staging only, Utoipa OpenAPI.
 - Frontend: React, TypeScript, Vite, TanStack Router, TanStack Query,
   generated OpenAPI types, openapi-fetch, Biome, Vitest, Playwright smoke spec.
 - Worker: Cloudflare Worker TypeScript reverse proxy to the Railway backend.
@@ -147,6 +146,14 @@ backend/Dockerfile
 - Keep `ORIGIN_SECRET` identical between Railway backend and Cloudflare Worker.
 - Set `RUN_MIGRATIONS_ON_STARTUP=true` on Railway for the MVP deployment so the
   backend applies SQLx migrations before serving traffic.
+- Production auth uses email-code login. Railway backend variables should
+  include `EMAIL_LOGIN_ENABLED=true`, `EMAIL_LOGIN_DELIVERY`, and
+  `EMAIL_LOGIN_ALLOWED_DOMAINS`. Use `EMAIL_LOGIN_DELIVERY=log` only for early
+  testing; use `EMAIL_LOGIN_DELIVERY=resend` with `RESEND_API_KEY` and
+  `EMAIL_FROM` for real email delivery.
+- `EMAIL_LOGIN_ALLOWED_DOMAINS=*` is acceptable for a private beta using
+  personal emails. Restore it to `e.ntu.edu.sg,ntu.edu.sg` before treating
+  accounts as NTU-verified.
 - Worker production variables must include `RAILWAY_ORIGIN=https://...` as a
   plain variable and `ORIGIN_SECRET` as a secret. Missing Worker variables are
   the most common cause of Cloudflare 1101 errors.
@@ -155,8 +162,9 @@ backend/Dockerfile
 
 ## Auth Notes
 
-- Production Microsoft Entra login may require NTU admin consent. Do not treat
-  Microsoft login as a blocker for deploying the public read-only site.
+- Email login stores only hashed one-time codes in PostgreSQL. In `log` mode,
+  the plaintext code appears in backend logs, so keep that mode limited to
+  controlled testing.
 - `ENABLE_DEV_LOGIN=true` is acceptable for local development and tightly
   controlled staging only. Keep it `false` for public production unless an
   explicit temporary testing plan is in place.

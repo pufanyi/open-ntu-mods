@@ -10,6 +10,13 @@ Open NTU Mods is a monorepo with three deployable parts:
 
 Railway hosts PostgreSQL and the Rust app. Cloudflare Workers adds security headers, forwards `X-Origin-Secret`, and caches public GET responses for course/wiki pages.
 
+## Auth
+
+Authentication uses email verification codes plus local cookie sessions. The
+backend stores only hashed session tokens and hashed one-time email codes.
+`EMAIL_LOGIN_DELIVERY=log` prints codes to backend logs for early testing;
+`EMAIL_LOGIN_DELIVERY=resend` sends real email through Resend.
+
 ## Data Model
 
 Courses are stable catalog entries. `course_offerings` represent an academic year and semester. Each offering has standalone `wiki_sections`. A section points at its current immutable version through `head_version_id`; older versions remain available in section history.

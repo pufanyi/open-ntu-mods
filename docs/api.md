@@ -8,13 +8,31 @@ pnpm --filter frontend generate:api
 
 ## Auth
 
-- `GET /auth/microsoft/login`: starts Microsoft Entra OIDC login.
-- `GET /auth/microsoft/callback`: validates OIDC callback and creates a local session.
+- `POST /auth/email/start`: sends a 6-digit email login code.
+- `POST /auth/email/verify`: verifies the code and creates a local session.
 - `POST /auth/dev-login`: local-only login when `ENABLE_DEV_LOGIN=true`.
 - `POST /auth/logout`: deletes the current session.
 - `GET /api/me`: returns the current user or `null`.
 
 Sessions are cookie-based. The cookie is httpOnly, SameSite=Lax, secure when `COOKIE_SECURE=true`, and only a hash of the session token is stored in PostgreSQL.
+
+Email login start request:
+
+```json
+{
+  "email": "student@e.ntu.edu.sg"
+}
+```
+
+Email login verify request:
+
+```json
+{
+  "email": "student@e.ntu.edu.sg",
+  "code": "123456",
+  "display_name": "Demo Student"
+}
+```
 
 Dev login request:
 
@@ -95,4 +113,3 @@ Every moderation/admin action that changes state writes a `moderation_actions` r
   }
 }
 ```
-

@@ -27,16 +27,29 @@ COOKIE_SECURE=true
 REQUIRE_ORIGIN_SECRET=true
 ORIGIN_SECRET=replace-with-long-random-secret
 RUN_MIGRATIONS_ON_STARTUP=true
-MICROSOFT_CLIENT_ID=...
-MICROSOFT_CLIENT_SECRET=...
-MICROSOFT_ISSUER=https://login.microsoftonline.com/organizations/v2.0
 NTU_ALLOWED_DOMAINS=e.ntu.edu.sg,ntu.edu.sg
-NTU_TENANT_ID=
+EMAIL_LOGIN_ENABLED=true
+EMAIL_LOGIN_DELIVERY=log
+EMAIL_LOGIN_ALLOWED_DOMAINS=e.ntu.edu.sg,ntu.edu.sg
+EMAIL_FROM=
+RESEND_API_KEY=
 ENABLE_DEV_LOGIN=false
 RUST_LOG=info
 ```
 
 Railway provides `PORT`; the backend binds to `0.0.0.0:$PORT`.
+
+For a private beta using personal email addresses, set:
+
+```env
+EMAIL_LOGIN_ALLOWED_DOMAINS=*
+```
+
+Switch it back to `e.ntu.edu.sg,ntu.edu.sg` before treating accounts as NTU
+verified. `EMAIL_LOGIN_DELIVERY=log` prints codes in Railway logs and is only
+appropriate for early testing. For real email delivery, set
+`EMAIL_LOGIN_DELIVERY=resend`, `RESEND_API_KEY`, and an `EMAIL_FROM` sender
+verified in Resend.
 
 ## Migrations
 

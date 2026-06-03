@@ -420,6 +420,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/email/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["email_login_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["email_login_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -430,38 +462,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/microsoft/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["microsoft_callback"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/microsoft/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["microsoft_login"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -569,6 +569,19 @@ export interface components {
         EditSectionResponse: {
             commit: components["schemas"]["WikiCommit"];
             version: components["schemas"]["WikiVersion"];
+        };
+        EmailLoginStartRequest: {
+            email: string;
+        };
+        EmailLoginStartResponse: {
+            /** Format: int64 */
+            expires_in_seconds: number;
+            sent: boolean;
+        };
+        EmailLoginVerifyRequest: {
+            code: string;
+            display_name?: string | null;
+            email: string;
         };
         ErrorBody: {
             code: string;
@@ -1484,51 +1497,26 @@ export interface operations {
             };
         };
     };
-    logout: {
+    email_login_start: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLoginStartRequest"];
             };
-            500: {
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
+                    "application/json": components["schemas"]["EmailLoginStartResponse"];
                 };
-            };
-        };
-    };
-    microsoft_callback: {
-        parameters: {
-            query: {
-                /** @description OIDC authorization code */
-                code: string;
-                /** @description OIDC state value */
-                state: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Redirect to frontend after local session creation */
-            307: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             400: {
                 headers: {
@@ -1546,6 +1534,14 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1556,7 +1552,62 @@ export interface operations {
             };
         };
     };
-    microsoft_login: {
+    email_login_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLoginVerifyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -1565,14 +1616,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Redirect to Microsoft Entra authorization endpoint */
-            307: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            503: {
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

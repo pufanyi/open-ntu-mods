@@ -19,6 +19,8 @@ pub enum ApiError {
     Forbidden(String),
     #[error("{0}")]
     NotFound(String),
+    #[error("{0}")]
+    TooManyRequests(String),
     #[error("{message}")]
     Conflict {
         message: String,
@@ -59,6 +61,7 @@ impl ApiError {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::Conflict { .. } => StatusCode::CONFLICT,
             Self::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Database(_) | Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -71,6 +74,7 @@ impl ApiError {
             Self::Unauthorized => "unauthorized",
             Self::Forbidden(_) => "forbidden",
             Self::NotFound(_) => "not_found",
+            Self::TooManyRequests(_) => "too_many_requests",
             Self::Conflict { .. } => "conflict",
             Self::ServiceUnavailable(_) => "service_unavailable",
             Self::Database(_) => "database_error",

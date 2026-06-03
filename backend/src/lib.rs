@@ -45,8 +45,8 @@ pub struct AppState {
     paths(
         api::health,
         auth::me,
-        auth::microsoft_login,
-        auth::microsoft_callback,
+        auth::email_login_start,
+        auth::email_login_verify,
         auth::dev_login,
         auth::logout,
         api::list_courses,
@@ -93,6 +93,9 @@ pub struct AppState {
         models::Report,
         models::MeResponse,
         models::DevLoginRequest,
+        models::EmailLoginStartRequest,
+        models::EmailLoginStartResponse,
+        models::EmailLoginVerifyRequest,
         models::LoginResponse,
         models::CreateCourseRequest,
         models::CreateOfferingRequest,
@@ -167,8 +170,8 @@ pub fn build_app(state: AppState) -> Router {
     Router::new()
         .route("/health", get(api::health))
         .route("/openapi.json", get(openapi_json))
-        .route("/auth/microsoft/login", get(auth::microsoft_login))
-        .route("/auth/microsoft/callback", get(auth::microsoft_callback))
+        .route("/auth/email/start", post(auth::email_login_start))
+        .route("/auth/email/verify", post(auth::email_login_verify))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/dev-login", post(auth::dev_login))
         .route("/api/me", get(auth::me))

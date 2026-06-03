@@ -153,6 +153,24 @@ pub struct DevLoginRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EmailLoginStartRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EmailLoginStartResponse {
+    pub sent: bool,
+    pub expires_in_seconds: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EmailLoginVerifyRequest {
+    pub email: String,
+    pub code: String,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct LoginResponse {
     pub user: User,
 }

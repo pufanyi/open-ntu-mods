@@ -861,9 +861,36 @@ function AdminPage() {
 function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState("student@e.ntu.edu.sg");
-  const [displayName, setDisplayName] = useState("Demo Student");
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [role, setRole] = useState("verified_user");
+  const startEmailLogin = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/auth/email/start", {
+          body: { email },
+        }),
+      ),
+    onSuccess: () => setCodeSent(true),
+  });
+  const verifyEmailLogin = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.POST("/auth/email/verify", {
+          body: {
+            email,
+            code,
+            display_name: displayName.trim() ? displayName : null,
+          },
+        }),
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      navigate({ to: "/" });
+    },
+  });
   const devLogin = useMutation({
     mutationFn: async () =>
       unwrap(
@@ -880,9 +907,82 @@ function LoginPage() {
   return (
     <section className="login">
       <h1>Login</h1>
-      <a className="button" href="/auth/microsoft/login">
-        Microsoft Entra
-      </a>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (codeSent) {
+            verifyEmailLogin.mutate();
+          } else {
+            startEmailLogin.mutate();
+          }
+        }}
+      >
+        <h2>Email code</h2>
+        <label>
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+        </label>
+        <label>
+          Display name
+          <input
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            placeholder="Optional"
+            autoComplete="name"
+          />
+        </label>
+        {codeSent && (
+          <label>
+            6-digit code
+            <input
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder="123456"
+              autoComplete="one-time-code"
+            />
+          </label>
+        )}
+        {codeSent && (
+          <p className="muted">
+            Code sent. In log delivery mode, check the backend logs.
+          </p>
+        )}
+        {startEmailLogin.error && (
+          <p className="error">{errorMessage(startEmailLogin.error)}</p>
+        )}
+        {verifyEmailLogin.error && (
+          <p className="error">{errorMessage(verifyEmailLogin.error)}</p>
+        )}
+        <div className="action-row">
+          <button
+            type="submit"
+            disabled={startEmailLogin.isPending || verifyEmailLogin.isPending}
+          >
+            {codeSent ? "Verify and login" : "Send code"}
+          </button>
+          {codeSent && (
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => {
+                setCode("");
+                startEmailLogin.mutate();
+              }}
+              disabled={startEmailLogin.isPending}
+            >
+              Resend
+            </button>
+          )}
+        </div>
+      </form>
       {import.meta.env.DEV && (
         <form
           onSubmit={(event) => {

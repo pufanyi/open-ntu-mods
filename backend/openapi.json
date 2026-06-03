@@ -957,54 +957,30 @@
         }
       }
     },
-    "/auth/logout": {
+    "/auth/email/start": {
       "post": {
         "tags": ["auth"],
-        "operationId": "logout",
-        "responses": {
-          "204": {
-            "description": ""
+        "operationId": "email_login_start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailLoginStartRequest"
+              }
+            }
           },
-          "500": {
+          "required": true
+        },
+        "responses": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorEnvelope"
+                  "$ref": "#/components/schemas/EmailLoginStartResponse"
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/auth/microsoft/callback": {
-      "get": {
-        "tags": ["auth"],
-        "operationId": "microsoft_callback",
-        "parameters": [
-          {
-            "name": "code",
-            "in": "query",
-            "description": "OIDC authorization code",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "description": "OIDC state value",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "307": {
-            "description": "Redirect to frontend after local session creation"
           },
           "400": {
             "description": "",
@@ -1026,6 +1002,16 @@
               }
             }
           },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "503": {
             "description": "",
             "content": {
@@ -1039,15 +1025,83 @@
         }
       }
     },
-    "/auth/microsoft/login": {
-      "get": {
+    "/auth/email/verify": {
+      "post": {
         "tags": ["auth"],
-        "operationId": "microsoft_login",
-        "responses": {
-          "307": {
-            "description": "Redirect to Microsoft Entra authorization endpoint"
+        "operationId": "email_login_verify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailLoginVerifyRequest"
+              }
+            }
           },
-          "503": {
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "500": {
             "description": "",
             "content": {
               "application/json": {
@@ -1310,6 +1364,43 @@
           },
           "version": {
             "$ref": "#/components/schemas/WikiVersion"
+          }
+        }
+      },
+      "EmailLoginStartRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "EmailLoginStartResponse": {
+        "type": "object",
+        "required": ["sent", "expires_in_seconds"],
+        "properties": {
+          "expires_in_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sent": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EmailLoginVerifyRequest": {
+        "type": "object",
+        "required": ["email", "code"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": ["string", "null"]
+          },
+          "email": {
+            "type": "string"
           }
         }
       },

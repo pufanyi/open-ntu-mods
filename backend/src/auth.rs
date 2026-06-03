@@ -3,22 +3,20 @@ use std::{convert::Infallible, time::Duration};
 use axum::{
     Json,
     body::Body,
-    extract::{FromRequestParts, Query, State},
+    extract::{FromRequestParts, State},
     http::{
         HeaderMap, Request, StatusCode,
         header::{COOKIE, SET_COOKIE},
         request::Parts,
     },
     middleware::Next,
-    response::{IntoResponse, Redirect, Response},
+    response::{IntoResponse, Response},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::Utc;
 use cookie::{Cookie, SameSite, time::Duration as CookieDuration};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use rand::RngCore;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Postgres, Transaction};
 use uuid::Uuid;
@@ -27,12 +25,16 @@ use crate::{
     AppState,
     config::Config,
     error::{ApiError, ApiResult},
-    models::{DevLoginRequest, LoginResponse, MeResponse, User},
+    models::{
+        DevLoginRequest, EmailLoginStartRequest, EmailLoginStartResponse, EmailLoginVerifyRequest,
+        LoginResponse, MeResponse, User,
+    },
 };
 
 pub const SESSION_COOKIE: &str = "ntu_session";
-const OIDC_STATE_COOKIE: &str = "oidc_state";
-const OIDC_NONCE_COOKIE: &str = "oidc_nonce";
+const EMAIL_CODE_TTL_MINUTES: i64 = 10;
+const EMAIL_CODE_MAX_REQUESTS_PER_WINDOW: i64 = 5;
+const EMAIL_CODE_MAX_VERIFY_ATTEMPTS: i32 = 5;
 
 #[derive(Clone, Debug)]
 pub struct CurrentUser(pub Option<User>);
@@ -50,51 +52,6 @@ where
             .cloned()
             .unwrap_or(CurrentUser(None)))
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MicrosoftCallbackQuery {
-    code: String,
-    state: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenIdConfiguration {
-    token_endpoint: String,
-    jwks_uri: String,
-    issuer: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct TokenResponse {
-    id_token: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct Jwks {
-    keys: Vec<Jwk>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Jwk {
-    kid: Option<String>,
-    kty: String,
-    n: Option<String>,
-    e: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct IdTokenClaims {
-    sub: String,
-    aud: String,
-    iss: String,
-    exp: usize,
-    nonce: Option<String>,
-    tid: Option<String>,
-    oid: Option<String>,
-    email: Option<String>,
-    preferred_username: Option<String>,
-    name: Option<String>,
 }
 
 pub async fn load_current_user(
@@ -189,6 +146,156 @@ pub async fn dev_login(
 
 #[utoipa::path(
     post,
+    path = "/auth/email/start",
+    request_body = EmailLoginStartRequest,
+    responses(
+        (status = 200, body = EmailLoginStartResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 503, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn email_login_start(
+    State(state): State<AppState>,
+    Json(request): Json<EmailLoginStartRequest>,
+) -> ApiResult<Json<EmailLoginStartResponse>> {
+    if !state.config.email_login_enabled {
+        return Err(ApiError::Forbidden("email login is disabled".into()));
+    }
+
+    let email = normalize_email(&request.email)?;
+    if !state.config.email_login_domain_allowed(&email) {
+        return Err(ApiError::Forbidden("email domain is not allowed".into()));
+    }
+
+    let recent_count: (i64,) = sqlx::query_as(
+        "select count(*)
+         from email_login_codes
+         where lower(email) = $1 and created_at > now() - interval '10 minutes'",
+    )
+    .bind(&email)
+    .fetch_one(&state.pool)
+    .await?;
+    if recent_count.0 >= EMAIL_CODE_MAX_REQUESTS_PER_WINDOW {
+        return Err(ApiError::TooManyRequests(
+            "too many login codes requested; try again later".into(),
+        ));
+    }
+
+    sqlx::query("delete from email_login_codes where expires_at < now() - interval '1 day'")
+        .execute(&state.pool)
+        .await?;
+
+    let code = random_email_code();
+    let code_hash = hash_email_code(&state.config, &email, &code);
+    let expires_at = Utc::now() + chrono::Duration::minutes(EMAIL_CODE_TTL_MINUTES);
+    sqlx::query(
+        "insert into email_login_codes
+         (id, email, code_hash, expires_at, created_at)
+         values ($1, $2, $3, $4, now())",
+    )
+    .bind(Uuid::new_v4())
+    .bind(&email)
+    .bind(code_hash)
+    .bind(expires_at)
+    .execute(&state.pool)
+    .await?;
+
+    send_email_code(&state.config, &email, &code).await?;
+
+    Ok(Json(EmailLoginStartResponse {
+        sent: true,
+        expires_in_seconds: EMAIL_CODE_TTL_MINUTES * 60,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/email/verify",
+    request_body = EmailLoginVerifyRequest,
+    responses(
+        (status = 200, body = LoginResponse),
+        (status = 400, body = crate::error::ErrorEnvelope),
+        (status = 403, body = crate::error::ErrorEnvelope),
+        (status = 429, body = crate::error::ErrorEnvelope),
+        (status = 500, body = crate::error::ErrorEnvelope)
+    )
+)]
+pub async fn email_login_verify(
+    State(state): State<AppState>,
+    Json(request): Json<EmailLoginVerifyRequest>,
+) -> ApiResult<Response> {
+    if !state.config.email_login_enabled {
+        return Err(ApiError::Forbidden("email login is disabled".into()));
+    }
+
+    let email = normalize_email(&request.email)?;
+    if !state.config.email_login_domain_allowed(&email) {
+        return Err(ApiError::Forbidden("email domain is not allowed".into()));
+    }
+
+    let code = normalize_code(&request.code)?;
+    let mut tx = state.pool.begin().await?;
+    let latest_code = sqlx::query_as::<_, (Uuid, String, i32)>(
+        "select id, code_hash, attempts
+         from email_login_codes
+         where lower(email) = $1
+           and consumed_at is null
+           and expires_at > now()
+         order by created_at desc
+         limit 1
+         for update",
+    )
+    .bind(&email)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some((code_id, expected_hash, attempts)) = latest_code else {
+        return Err(ApiError::BadRequest("invalid or expired login code".into()));
+    };
+    if attempts >= EMAIL_CODE_MAX_VERIFY_ATTEMPTS {
+        return Err(ApiError::TooManyRequests(
+            "too many incorrect login code attempts".into(),
+        ));
+    }
+
+    if hash_email_code(&state.config, &email, &code) != expected_hash {
+        sqlx::query("update email_login_codes set attempts = attempts + 1 where id = $1")
+            .bind(code_id)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        return Err(ApiError::BadRequest("invalid or expired login code".into()));
+    }
+
+    sqlx::query("update email_login_codes set consumed_at = now() where id = $1")
+        .bind(code_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+
+    let user = upsert_user(
+        &state.pool,
+        "email",
+        Some("email"),
+        Some(&email),
+        &email,
+        request.display_name.as_deref(),
+        None,
+    )
+    .await?;
+    let cookie = create_session_cookie(&state.pool, &state.config, user.id).await?;
+
+    let mut response = (StatusCode::OK, Json(LoginResponse { user })).into_response();
+    response
+        .headers_mut()
+        .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
+    Ok(response)
+}
+
+#[utoipa::path(
+    post,
     path = "/auth/logout",
     responses((status = 204), (status = 500, body = crate::error::ErrorEnvelope))
 )]
@@ -212,153 +319,6 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiRes
     response
         .headers_mut()
         .insert(SET_COOKIE, cookie.to_string().parse().unwrap());
-    Ok(response)
-}
-
-#[utoipa::path(
-    get,
-    path = "/auth/microsoft/login",
-    responses(
-        (status = 307, description = "Redirect to Microsoft Entra authorization endpoint"),
-        (status = 503, body = crate::error::ErrorEnvelope)
-    )
-)]
-pub async fn microsoft_login(State(state): State<AppState>) -> ApiResult<Response> {
-    let client_id = state.config.microsoft_client_id.as_ref().ok_or_else(|| {
-        ApiError::ServiceUnavailable("MICROSOFT_CLIENT_ID is not configured".into())
-    })?;
-
-    let state_token = random_token();
-    let nonce = random_token();
-    let authorize_url = format!(
-        "{issuer}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope=openid%20profile%20email&state={state_token}&nonce={nonce}",
-        issuer = state.config.microsoft_issuer.trim_end_matches('/'),
-        client_id = url_encode(client_id),
-        redirect_uri = url_encode(&state.config.microsoft_redirect_uri()),
-    );
-
-    let mut response = Redirect::temporary(&authorize_url).into_response();
-    response.headers_mut().insert(
-        SET_COOKIE,
-        transient_cookie(OIDC_STATE_COOKIE, &state_token, &state.config)
-            .to_string()
-            .parse()
-            .unwrap(),
-    );
-    response.headers_mut().append(
-        SET_COOKIE,
-        transient_cookie(OIDC_NONCE_COOKIE, &nonce, &state.config)
-            .to_string()
-            .parse()
-            .unwrap(),
-    );
-    Ok(response)
-}
-
-#[utoipa::path(
-    get,
-    path = "/auth/microsoft/callback",
-    params(
-        ("code" = String, Query, description = "OIDC authorization code"),
-        ("state" = String, Query, description = "OIDC state value")
-    ),
-    responses(
-        (status = 307, description = "Redirect to frontend after local session creation"),
-        (status = 400, body = crate::error::ErrorEnvelope),
-        (status = 403, body = crate::error::ErrorEnvelope),
-        (status = 503, body = crate::error::ErrorEnvelope)
-    )
-)]
-pub async fn microsoft_callback(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Query(query): Query<MicrosoftCallbackQuery>,
-) -> ApiResult<Response> {
-    let expected_state = cookie_value(&headers, OIDC_STATE_COOKIE)
-        .ok_or_else(|| ApiError::BadRequest("missing OIDC state cookie".into()))?;
-    let expected_nonce = cookie_value(&headers, OIDC_NONCE_COOKIE)
-        .ok_or_else(|| ApiError::BadRequest("missing OIDC nonce cookie".into()))?;
-    if expected_state != query.state {
-        return Err(ApiError::BadRequest("OIDC state mismatch".into()));
-    }
-
-    let client_id = state.config.microsoft_client_id.as_ref().ok_or_else(|| {
-        ApiError::ServiceUnavailable("MICROSOFT_CLIENT_ID is not configured".into())
-    })?;
-    let client_secret = state
-        .config
-        .microsoft_client_secret
-        .as_ref()
-        .ok_or_else(|| {
-            ApiError::ServiceUnavailable("MICROSOFT_CLIENT_SECRET is not configured".into())
-        })?;
-
-    let discovery = discover_oidc(&state.config).await?;
-    let token = exchange_code(
-        &state.config,
-        client_id,
-        client_secret,
-        &discovery,
-        &query.code,
-    )
-    .await?;
-    let claims = validate_id_token(&discovery, client_id, &token.id_token).await?;
-
-    if claims.nonce.as_deref() != Some(expected_nonce.as_str()) {
-        return Err(ApiError::BadRequest("OIDC nonce mismatch".into()));
-    }
-
-    if let Some(required_tenant) = &state.config.ntu_tenant_id
-        && claims.tid.as_deref() != Some(required_tenant.as_str())
-    {
-        return Err(ApiError::Forbidden("token tenant is not allowed".into()));
-    }
-
-    let email = claims
-        .email
-        .clone()
-        .or(claims.preferred_username.clone())
-        .ok_or_else(|| ApiError::Forbidden("Microsoft token did not include an email".into()))?;
-    if !state.config.email_domain_allowed(&email) {
-        return Err(ApiError::Forbidden("email domain is not allowed".into()));
-    }
-
-    let tenant_id = claims.tid.as_deref();
-    let provider_user_id = claims.oid.as_deref().unwrap_or(&claims.sub);
-    let user = upsert_user(
-        &state.pool,
-        "microsoft",
-        tenant_id,
-        Some(provider_user_id),
-        &email,
-        claims.name.as_deref(),
-        None,
-    )
-    .await?;
-    let session_cookie = create_session_cookie(&state.pool, &state.config, user.id).await?;
-
-    let mut response = Redirect::temporary(&state.config.app_public_url).into_response();
-    response.headers_mut().insert(
-        SET_COOKIE,
-        session_cookie
-            .to_string()
-            .parse()
-            .expect("valid session cookie"),
-    );
-    response.headers_mut().append(
-        SET_COOKIE,
-        expired_cookie(OIDC_STATE_COOKIE, &state.config)
-            .to_string()
-            .parse()
-            .expect("valid state cookie"),
-    );
-    response.headers_mut().append(
-        SET_COOKIE,
-        expired_cookie(OIDC_NONCE_COOKIE, &state.config)
-            .to_string()
-            .parse()
-            .expect("valid nonce cookie"),
-    );
     Ok(response)
 }
 
@@ -497,7 +457,7 @@ pub async fn upsert_user(
     let user = if let Some(existing) = existing {
         sqlx::query_as::<_, User>(
             "update users
-             set email = $2, display_name = $3, updated_at = $4
+             set email = $2, display_name = coalesce($3, display_name), updated_at = $4
              where id = $1
              returning *",
         )
@@ -571,120 +531,87 @@ fn random_token() -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-fn transient_cookie(name: &'static str, value: &str, config: &Config) -> Cookie<'static> {
-    let mut cookie = Cookie::new(name, value.to_string());
-    cookie.set_path("/");
-    cookie.set_http_only(true);
-    cookie.set_secure(config.cookie_secure);
-    cookie.set_same_site(SameSite::Lax);
-    cookie.set_max_age(CookieDuration::minutes(10));
-    cookie
+fn random_email_code() -> String {
+    let mut rng = rand::rng();
+    let value = rng.next_u32() % 1_000_000;
+    format!("{value:06}")
 }
 
-fn expired_cookie(name: &'static str, config: &Config) -> Cookie<'static> {
-    let mut cookie = Cookie::new(name, "");
-    cookie.set_path("/");
-    cookie.set_http_only(true);
-    cookie.set_secure(config.cookie_secure);
-    cookie.set_same_site(SameSite::Lax);
-    cookie.set_max_age(CookieDuration::seconds(0));
-    cookie
+fn hash_email_code(config: &Config, email: &str, code: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(config.session_secret.as_bytes());
+    hasher.update(b":email-login:");
+    hasher.update(email.as_bytes());
+    hasher.update(b":");
+    hasher.update(code.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
-fn url_encode(input: &str) -> String {
-    input
-        .bytes()
-        .flat_map(|byte| match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                vec![byte as char]
-            }
-            _ => format!("%{byte:02X}").chars().collect(),
-        })
-        .collect()
+fn normalize_email(email: &str) -> ApiResult<String> {
+    let email = email.trim().to_ascii_lowercase();
+    if email.len() > 254
+        || !email.contains('@')
+        || email.starts_with('@')
+        || email.ends_with('@')
+        || email.contains(char::is_whitespace)
+    {
+        return Err(ApiError::BadRequest("invalid email address".into()));
+    }
+    Ok(email)
 }
 
-async fn discover_oidc(config: &Config) -> ApiResult<OpenIdConfiguration> {
-    let url = format!(
-        "{}/.well-known/openid-configuration",
-        config.microsoft_issuer.trim_end_matches('/')
-    );
-    reqwest::get(url)
-        .await
-        .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?
-        .json::<OpenIdConfiguration>()
-        .await
-        .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))
+fn normalize_code(code: &str) -> ApiResult<String> {
+    let code = code.trim();
+    if code.len() != 6 || !code.chars().all(|character| character.is_ascii_digit()) {
+        return Err(ApiError::BadRequest("login code must be 6 digits".into()));
+    }
+    Ok(code.to_string())
 }
 
-async fn exchange_code(
-    config: &Config,
-    client_id: &str,
-    client_secret: &str,
-    discovery: &OpenIdConfiguration,
-    code: &str,
-) -> ApiResult<TokenResponse> {
+async fn send_email_code(config: &Config, email: &str, code: &str) -> ApiResult<()> {
+    match config.email_login_delivery.as_str() {
+        "log" => {
+            tracing::warn!(
+                email = %email,
+                code = %code,
+                "email login code generated; use EMAIL_LOGIN_DELIVERY=resend to send real email"
+            );
+            Ok(())
+        }
+        "resend" => send_resend_email(config, email, code).await,
+        delivery => Err(ApiError::ServiceUnavailable(format!(
+            "unsupported EMAIL_LOGIN_DELIVERY: {delivery}"
+        ))),
+    }
+}
+
+async fn send_resend_email(config: &Config, email: &str, code: &str) -> ApiResult<()> {
+    let api_key = config
+        .resend_api_key
+        .as_deref()
+        .ok_or_else(|| ApiError::ServiceUnavailable("RESEND_API_KEY is not configured".into()))?;
+    let from = config
+        .email_from
+        .as_deref()
+        .ok_or_else(|| ApiError::ServiceUnavailable("EMAIL_FROM is not configured".into()))?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|error| ApiError::Internal(error.to_string()))?;
 
     client
-        .post(&discovery.token_endpoint)
-        .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-            ("code", code),
-            ("redirect_uri", &config.microsoft_redirect_uri()),
-            ("grant_type", "authorization_code"),
-        ])
+        .post("https://api.resend.com/emails")
+        .bearer_auth(api_key)
+        .json(&json!({
+            "from": from,
+            "to": [email],
+            "subject": "Your Open NTU Mods login code",
+            "text": format!("Your Open NTU Mods login code is {code}. It expires in {EMAIL_CODE_TTL_MINUTES} minutes.")
+        }))
         .send()
         .await
         .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?
         .error_for_status()
-        .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?
-        .json::<TokenResponse>()
-        .await
-        .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))
-}
-
-async fn validate_id_token(
-    discovery: &OpenIdConfiguration,
-    client_id: &str,
-    id_token: &str,
-) -> ApiResult<IdTokenClaims> {
-    let header =
-        decode_header(id_token).map_err(|error| ApiError::BadRequest(error.to_string()))?;
-    let kid = header
-        .kid
-        .ok_or_else(|| ApiError::BadRequest("id token does not include a key id".into()))?;
-    let jwks = reqwest::get(&discovery.jwks_uri)
-        .await
-        .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?
-        .json::<Jwks>()
-        .await
         .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?;
-    let jwk = jwks
-        .keys
-        .into_iter()
-        .find(|key| key.kid.as_deref() == Some(kid.as_str()) && key.kty == "RSA")
-        .ok_or_else(|| ApiError::BadRequest("id token signing key was not found".into()))?;
-    let n = jwk
-        .n
-        .ok_or_else(|| ApiError::BadRequest("RSA key modulus missing".into()))?;
-    let e = jwk
-        .e
-        .ok_or_else(|| ApiError::BadRequest("RSA key exponent missing".into()))?;
-
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_audience(&[client_id]);
-    validation.set_issuer(&[discovery.issuer.as_str()]);
-
-    let token = decode::<IdTokenClaims>(
-        id_token,
-        &DecodingKey::from_rsa_components(&n, &e)
-            .map_err(|error| ApiError::BadRequest(error.to_string()))?,
-        &validation,
-    )
-    .map_err(|error| ApiError::BadRequest(error.to_string()))?;
-    Ok(token.claims)
+    Ok(())
 }
