@@ -98,6 +98,30 @@ pnpm --filter frontend generate:api
 - Regenerate and commit `backend/openapi.json` and
   `frontend/src/generated/api-types.ts` whenever API schemas or routes change.
 
+## Database Changes
+
+- Never edit an already committed/applied migration file. Treat files under
+  `backend/migrations/00*_*.sql` as append-only once pushed, because SQLx stores
+  migration checksums and production Railway startup migrations will fail if an
+  old migration changes.
+- Change schema or production data with a new numbered migration, for example
+  `backend/migrations/004_describe_change.sql`.
+- Keep migrations forward-only for this MVP. Do not add destructive schema or
+  data changes without an explicit backup/rollback plan documented in the same
+  change.
+- If a migration needs to transform existing production rows, make it
+  idempotent where practical and preserve immutable history tables. For wiki
+  content, prefer creating new `wiki_commits`, `wiki_versions`, and
+  `wiki_commit_changes` instead of overwriting or deleting old versions.
+- After changing database shape, update the Rust SQLx models/queries, OpenAPI
+  schemas, generated frontend API types, tests, and docs in the same change.
+- Verify migrations with `sqlx migrate run` against a disposable/local
+  PostgreSQL database when available. GitHub Actions also runs migrations
+  against Postgres before Rust checks.
+- Production Railway has `RUN_MIGRATIONS_ON_STARTUP=true`; successful backend
+  deployment applies new migrations before serving traffic.
+- Do not commit database URLs, dumps, Railway variable values, or other secrets.
+
 ## Deployment Notes
 
 - Railway should have only the backend service plus PostgreSQL for this repo.
