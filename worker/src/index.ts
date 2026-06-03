@@ -77,8 +77,11 @@ export default {
     const canCacheResponse =
       cachePolicy !== null &&
       isCacheableResponse(cachePolicy, upstreamResponse);
+    const responseCacheControl = canCacheResponse
+      ? cachePolicy.cacheControl
+      : nonCacheableCacheControl(cachePolicy);
     const response = finalizeResponse(upstreamResponse, {
-      cacheControl: canCacheResponse ? cachePolicy.cacheControl : undefined,
+      cacheControl: responseCacheControl,
       cacheStatus: canCacheResponse ? "MISS" : "BYPASS",
     });
 
@@ -155,6 +158,16 @@ function isCacheableResponse(policy: CachePolicy, response: Response): boolean {
   }
 
   return true;
+}
+
+function nonCacheableCacheControl(
+  policy: CachePolicy | null,
+): string | undefined {
+  if (policy?.kind === "asset") {
+    return "no-store";
+  }
+
+  return undefined;
 }
 
 function buildCacheKey(
