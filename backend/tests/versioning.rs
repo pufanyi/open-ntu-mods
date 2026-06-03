@@ -50,6 +50,57 @@ async fn session_token_hashing_and_lookup(pool: PgPool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn email_identity_is_case_insensitive_and_can_infer_display_name(pool: PgPool) {
+    let created = auth::upsert_user(
+        &pool,
+        "email",
+        Some("email"),
+        Some("Alice.TAN@E.NTU.EDU.SG"),
+        "Alice.TAN@E.NTU.EDU.SG",
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(created.email, "alice.tan@e.ntu.edu.sg");
+    assert_eq!(
+        created.provider_user_id.as_deref(),
+        Some("alice.tan@e.ntu.edu.sg")
+    );
+
+    let updated = auth::upsert_user(
+        &pool,
+        "email",
+        Some("email"),
+        Some("ALICE.TAN@E.NTU.EDU.SG"),
+        "ALICE.TAN@E.NTU.EDU.SG",
+        Some("Alice Tan"),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated.id, created.id);
+    assert_eq!(updated.email, "alice.tan@e.ntu.edu.sg");
+    assert_eq!(updated.display_name.as_deref(), Some("Alice Tan"));
+
+    let email_user_count: (i64,) =
+        sqlx::query_as("select count(*) from users where provider = 'email'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(email_user_count.0, 1);
+
+    assert_eq!(
+        auth::infer_display_name_from_email("alice.tan@e.ntu.edu.sg"),
+        Some("Alice Tan".to_string())
+    );
+    assert_eq!(
+        auth::infer_display_name_from_email("u2323232@e.ntu.edu.sg"),
+        None
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn edit_section_creates_commit_version_change_and_detects_conflict(pool: PgPool) {
     let student_id = uuid(STUDENT_ID);
     let section_id = uuid(SECTION_2025_ASSESSMENT_ID);

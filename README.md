@@ -33,6 +33,11 @@ login page supports separate register and login email-code flows; with
 `EMAIL_LOGIN_DELIVERY=log`, codes are printed in backend logs. Seed data
 includes demo SC2001 offerings and demo users only.
 
+Email-code accounts use the normalized lowercase email address as the stable
+login identity. Registration can infer a simple display name from readable
+addresses like `first.last@e.ntu.edu.sg`, but users can edit their display name
+from the account page.
+
 For Railway deployments, set `RUN_MIGRATIONS_ON_STARTUP=true` on the backend
 service so SQLx migrations run before the app serves traffic. Local `sqlx`
 commands need a PostgreSQL TCP connection string, not the Railway app HTTP

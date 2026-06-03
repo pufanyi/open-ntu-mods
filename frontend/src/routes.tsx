@@ -974,7 +974,7 @@ function LoginPage() {
               setCode("");
               setCodeSent(false);
             }}
-            placeholder="you@example.com"
+            placeholder="you@e.ntu.edu.sg"
             autoComplete="email"
           />
         </label>
@@ -1155,7 +1155,7 @@ function AccountPage() {
           }}
         >
           <h2>Profile</h2>
-          <p className="muted">{me.data.user.email}</p>
+          <p className="muted">{me.data.user.email} is your account ID.</p>
           <label>
             Display name
             <input

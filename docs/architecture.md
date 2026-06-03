@@ -20,6 +20,13 @@ Register and login have separate endpoints and separate email-code purposes, so
 a registration code cannot be used as a login code. The legacy `/auth/email/*`
 combined endpoints remain for compatibility.
 
+Email accounts use the normalized lowercase email address as their stable
+provider identity (`provider_user_id`). This keeps NTU email matching
+case-insensitive while preserving UUID primary keys for foreign-key references.
+On registration, the backend may infer a display name from readable local-parts
+such as `first.last@e.ntu.edu.sg`; it does not query external NTU directories for
+names.
+
 ## Data Model
 
 Courses are stable catalog entries. `course_offerings` represent an academic year and semester. Each offering has standalone `wiki_sections`. A section points at its current immutable version through `head_version_id`; older versions remain available in section history.

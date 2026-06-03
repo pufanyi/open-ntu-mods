@@ -168,10 +168,18 @@ backend/Dockerfile
 - Email login stores only hashed one-time codes in PostgreSQL. In `log` mode,
   the plaintext code appears in backend logs, so keep that mode limited to
   controlled testing.
+- Email-code accounts use normalized lowercase email addresses as their stable
+  provider identity: `provider = email`, `provider_tenant_id = email`, and
+  `provider_user_id = lower(email)`. Keep this case-insensitive and do not
+  change the UUID primary key model without a full foreign-key migration plan.
 - Register and login are distinct email-code flows. Use
   `/auth/register/start` + `/auth/register/verify` for new accounts and
   `/auth/login/start` + `/auth/login/verify` for existing accounts. The legacy
   `/auth/email/*` combined endpoints remain for compatibility.
+- Registration may infer a display name from readable email local-parts such as
+  `first.last@e.ntu.edu.sg`, but this is only a local heuristic. Do not scrape
+  or query external NTU directories for names without an explicit authenticated
+  integration and privacy review.
 - Account self-management endpoints live under `/api/account/*` for profile
   updates, active session listing, and logout-all.
 - `ENABLE_DEV_LOGIN=true` is acceptable for local development and tightly

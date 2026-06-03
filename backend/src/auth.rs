@@ -123,7 +123,8 @@ pub async fn dev_login(
     if !state.config.enable_dev_login {
         return Err(ApiError::Forbidden("dev login is disabled".into()));
     }
-    if !state.config.email_domain_allowed(&request.email) {
+    let email = normalize_email(&request.email)?;
+    if !state.config.email_domain_allowed(&email) {
         return Err(ApiError::Forbidden("email domain is not allowed".into()));
     }
 
@@ -134,7 +135,7 @@ pub async fn dev_login(
         "dev",
         None,
         None,
-        &request.email,
+        &email,
         request.display_name.as_deref(),
         Some(&role),
     )
@@ -185,13 +186,14 @@ pub async fn email_login_verify(
 ) -> ApiResult<Response> {
     let email =
         consume_email_code(&state, &request.email, &request.code, EMAIL_PURPOSE_LEGACY).await?;
+    let display_name = display_name_from_request_or_email(request.display_name.as_deref(), &email);
     let user = upsert_user(
         &state.pool,
         "email",
         Some("email"),
         Some(&email),
         &email,
-        request.display_name.as_deref(),
+        display_name.as_deref(),
         None,
     )
     .await?;
@@ -263,13 +265,14 @@ pub async fn register_verify(
         });
     }
 
+    let display_name = display_name_from_request_or_email(request.display_name.as_deref(), &email);
     let user = upsert_user(
         &state.pool,
         "email",
         Some("email"),
         Some(&email),
         &email,
-        request.display_name.as_deref(),
+        display_name.as_deref(),
         None,
     )
     .await?;
@@ -553,7 +556,7 @@ async fn find_email_user(pool: &PgPool, email: &str) -> ApiResult<Option<User>> 
          from users
          where provider = 'email'
            and provider_tenant_id = 'email'
-           and provider_user_id = $1",
+           and lower(provider_user_id) = $1",
     )
     .bind(email)
     .fetch_optional(pool)
@@ -567,7 +570,7 @@ async fn email_account_exists(pool: &PgPool, email: &str) -> ApiResult<bool> {
            select 1 from users
            where provider = 'email'
              and provider_tenant_id = 'email'
-             and provider_user_id = $1
+             and lower(provider_user_id) = $1
          )",
     )
     .bind(email)
@@ -588,6 +591,7 @@ pub async fn upsert_user(
     let now = Utc::now();
 
     if provider == "dev" {
+        let email = normalize_email(email)?;
         let user = sqlx::query_as::<_, User>(
             "insert into users (id, provider, provider_tenant_id, provider_user_id, email, display_name, role, created_at, updated_at)
              values ($1, 'dev', null, null, $2, $3, $4, $5, $5)
@@ -605,29 +609,64 @@ pub async fn upsert_user(
         return Ok(user);
     }
 
-    let tenant = provider_tenant_id.ok_or_else(|| {
-        ApiError::BadRequest("provider_tenant_id is required for production auth".into())
-    })?;
-    let provider_user = provider_user_id.ok_or_else(|| {
-        ApiError::BadRequest("provider_user_id is required for production auth".into())
-    })?;
+    let email_identity = if provider == "email" {
+        Some(normalize_email(email)?)
+    } else {
+        None
+    };
+    let email = email_identity.as_deref().unwrap_or(email);
+    let tenant = if provider == "email" {
+        "email"
+    } else {
+        provider_tenant_id.ok_or_else(|| {
+            ApiError::BadRequest("provider_tenant_id is required for production auth".into())
+        })?
+    };
+    let provider_user = if provider == "email" {
+        email
+    } else {
+        provider_user_id.ok_or_else(|| {
+            ApiError::BadRequest("provider_user_id is required for production auth".into())
+        })?
+    };
 
     let mut tx = pool.begin().await?;
-    let existing = sqlx::query_as::<_, User>(
-        "select * from users
-         where provider = $1 and provider_tenant_id = $2 and provider_user_id = $3
-         for update",
-    )
-    .bind(provider)
-    .bind(tenant)
-    .bind(provider_user)
-    .fetch_optional(&mut *tx)
-    .await?;
+    let existing = if email_identity.is_some() {
+        sqlx::query_as::<_, User>(
+            "select * from users
+             where provider = $1
+               and provider_tenant_id = $2
+               and lower(provider_user_id) = $3
+             for update",
+        )
+        .bind(provider)
+        .bind(tenant)
+        .bind(provider_user)
+        .fetch_optional(&mut *tx)
+        .await?
+    } else {
+        sqlx::query_as::<_, User>(
+            "select * from users
+             where provider = $1
+               and provider_tenant_id = $2
+               and provider_user_id = $3
+             for update",
+        )
+        .bind(provider)
+        .bind(tenant)
+        .bind(provider_user)
+        .fetch_optional(&mut *tx)
+        .await?
+    };
 
     let user = if let Some(existing) = existing {
         sqlx::query_as::<_, User>(
             "update users
-             set email = $2, display_name = coalesce($3, display_name), updated_at = $4
+             set email = $2,
+                 display_name = coalesce($3, display_name),
+                 updated_at = $4,
+                 provider_tenant_id = $5,
+                 provider_user_id = $6
              where id = $1
              returning *",
         )
@@ -635,6 +674,8 @@ pub async fn upsert_user(
         .bind(email)
         .bind(display_name)
         .bind(now)
+        .bind(tenant)
+        .bind(provider_user)
         .fetch_one(&mut *tx)
         .await?
     } else {
@@ -728,6 +769,44 @@ fn normalize_email(email: &str) -> ApiResult<String> {
         return Err(ApiError::BadRequest("invalid email address".into()));
     }
     Ok(email)
+}
+
+fn display_name_from_request_or_email(requested: Option<&str>, email: &str) -> Option<String> {
+    requested
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| infer_display_name_from_email(email))
+}
+
+pub fn infer_display_name_from_email(email: &str) -> Option<String> {
+    let (local_part, _) = email.split_once('@')?;
+    let local_part = local_part
+        .split_once('+')
+        .map_or(local_part, |(base, _)| base);
+    let tokens: Vec<&str> = local_part
+        .split(['.', '_', '-'])
+        .filter(|token| !token.is_empty())
+        .collect();
+    if tokens.len() < 2 {
+        return None;
+    }
+
+    let mut words = Vec::new();
+    for token in tokens {
+        if token.len() < 2
+            || !token
+                .chars()
+                .all(|character| character.is_ascii_alphabetic())
+        {
+            return None;
+        }
+        let mut characters = token.chars();
+        let first = characters.next()?.to_ascii_uppercase();
+        let rest = characters.as_str().to_ascii_lowercase();
+        words.push(format!("{first}{rest}"));
+    }
+    Some(words.join(" "))
 }
 
 fn normalize_code(code: &str) -> ApiResult<String> {
@@ -904,4 +983,26 @@ async fn send_resend_email(config: &Config, email: &str, code: &str) -> ApiResul
         .error_for_status()
         .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::infer_display_name_from_email;
+
+    #[test]
+    fn infer_display_name_from_readable_email_local_part_only() {
+        assert_eq!(
+            infer_display_name_from_email("alice.tan@e.ntu.edu.sg"),
+            Some("Alice Tan".to_string())
+        );
+        assert_eq!(
+            infer_display_name_from_email("alice-tan.lee@ntu.edu.sg"),
+            Some("Alice Tan Lee".to_string())
+        );
+        assert_eq!(infer_display_name_from_email("u2323232@e.ntu.edu.sg"), None);
+        assert_eq!(
+            infer_display_name_from_email("alice123.tan@e.ntu.edu.sg"),
+            None
+        );
+    }
 }
