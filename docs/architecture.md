@@ -23,9 +23,9 @@ combined endpoints remain for compatibility.
 Email accounts use the normalized lowercase email address as their stable
 provider identity (`provider_user_id`). This keeps NTU email matching
 case-insensitive while preserving UUID primary keys for foreign-key references.
-On registration, the backend may infer a display name from readable local-parts
-such as `first.last@e.ntu.edu.sg`; it does not query external NTU directories for
-names.
+Display names are never inferred from NTU email local-parts; they come only from
+explicit user input or account profile edits. The backend does not query
+external NTU directories for names.
 
 ## Data Model
 

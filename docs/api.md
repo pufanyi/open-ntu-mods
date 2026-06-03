@@ -25,9 +25,8 @@ Sessions are cookie-based. The cookie is httpOnly, SameSite=Lax, secure when `CO
 
 Email-code accounts use normalized lowercase email addresses as their stable
 identity, so `Student@E.NTU.EDU.SG` and `student@e.ntu.edu.sg` are the same
-account. `display_name` is optional on registration; if omitted, the backend may
-infer a conservative default from readable email local-parts such as
-`first.last@e.ntu.edu.sg`.
+account. `display_name` is optional on registration; if omitted, it remains
+unset until the user edits their account profile.
 
 Register start request:
 

@@ -186,7 +186,7 @@ pub async fn email_login_verify(
 ) -> ApiResult<Response> {
     let email =
         consume_email_code(&state, &request.email, &request.code, EMAIL_PURPOSE_LEGACY).await?;
-    let display_name = display_name_from_request_or_email(request.display_name.as_deref(), &email);
+    let display_name = display_name_from_request(request.display_name.as_deref());
     let user = upsert_user(
         &state.pool,
         "email",
@@ -265,7 +265,7 @@ pub async fn register_verify(
         });
     }
 
-    let display_name = display_name_from_request_or_email(request.display_name.as_deref(), &email);
+    let display_name = display_name_from_request(request.display_name.as_deref());
     let user = upsert_user(
         &state.pool,
         "email",
@@ -771,42 +771,11 @@ fn normalize_email(email: &str) -> ApiResult<String> {
     Ok(email)
 }
 
-fn display_name_from_request_or_email(requested: Option<&str>, email: &str) -> Option<String> {
+fn display_name_from_request(requested: Option<&str>) -> Option<String> {
     requested
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
-        .or_else(|| infer_display_name_from_email(email))
-}
-
-pub fn infer_display_name_from_email(email: &str) -> Option<String> {
-    let (local_part, _) = email.split_once('@')?;
-    let local_part = local_part
-        .split_once('+')
-        .map_or(local_part, |(base, _)| base);
-    let tokens: Vec<&str> = local_part
-        .split(['.', '_', '-'])
-        .filter(|token| !token.is_empty())
-        .collect();
-    if tokens.len() < 2 {
-        return None;
-    }
-
-    let mut words = Vec::new();
-    for token in tokens {
-        if token.len() < 2
-            || !token
-                .chars()
-                .all(|character| character.is_ascii_alphabetic())
-        {
-            return None;
-        }
-        let mut characters = token.chars();
-        let first = characters.next()?.to_ascii_uppercase();
-        let rest = characters.as_str().to_ascii_lowercase();
-        words.push(format!("{first}{rest}"));
-    }
-    Some(words.join(" "))
 }
 
 fn normalize_code(code: &str) -> ApiResult<String> {
@@ -983,26 +952,4 @@ async fn send_resend_email(config: &Config, email: &str, code: &str) -> ApiResul
         .error_for_status()
         .map_err(|error| ApiError::ServiceUnavailable(error.to_string()))?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::infer_display_name_from_email;
-
-    #[test]
-    fn infer_display_name_from_readable_email_local_part_only() {
-        assert_eq!(
-            infer_display_name_from_email("alice.tan@e.ntu.edu.sg"),
-            Some("Alice Tan".to_string())
-        );
-        assert_eq!(
-            infer_display_name_from_email("alice-tan.lee@ntu.edu.sg"),
-            Some("Alice Tan Lee".to_string())
-        );
-        assert_eq!(infer_display_name_from_email("u2323232@e.ntu.edu.sg"), None);
-        assert_eq!(
-            infer_display_name_from_email("alice123.tan@e.ntu.edu.sg"),
-            None
-        );
-    }
 }

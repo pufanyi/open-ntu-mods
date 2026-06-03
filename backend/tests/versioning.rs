@@ -50,7 +50,7 @@ async fn session_token_hashing_and_lookup(pool: PgPool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn email_identity_is_case_insensitive_and_can_infer_display_name(pool: PgPool) {
+async fn email_identity_is_case_insensitive_without_display_name_inference(pool: PgPool) {
     let created = auth::upsert_user(
         &pool,
         "email",
@@ -67,6 +67,7 @@ async fn email_identity_is_case_insensitive_and_can_infer_display_name(pool: PgP
         created.provider_user_id.as_deref(),
         Some("alice.tan@e.ntu.edu.sg")
     );
+    assert_eq!(created.display_name, None);
 
     let updated = auth::upsert_user(
         &pool,
@@ -89,15 +90,6 @@ async fn email_identity_is_case_insensitive_and_can_infer_display_name(pool: PgP
             .await
             .unwrap();
     assert_eq!(email_user_count.0, 1);
-
-    assert_eq!(
-        auth::infer_display_name_from_email("alice.tan@e.ntu.edu.sg"),
-        Some("Alice Tan".to_string())
-    );
-    assert_eq!(
-        auth::infer_display_name_from_email("u2323232@e.ntu.edu.sg"),
-        None
-    );
 }
 
 #[sqlx::test(migrations = "./migrations")]
