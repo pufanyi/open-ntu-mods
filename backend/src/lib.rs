@@ -178,7 +178,7 @@ pub fn build_app(state: AppState) -> Router {
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from("../frontend/dist"));
     let index = static_dir.join("index.html");
-    let spa = ServeDir::new(static_dir).not_found_service(ServeFile::new(index));
+    let spa = ServeDir::new(static_dir).fallback(ServeFile::new(index));
 
     Router::new()
         .route("/health", get(api::health))

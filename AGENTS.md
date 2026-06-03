@@ -159,6 +159,9 @@ backend/Dockerfile
   the most common cause of Cloudflare 1101 errors.
 - Backend origin protection intentionally exempts `/health` so Railway
   healthchecks can pass without custom headers. Do not exempt API/Auth routes.
+- The backend serves the built React app for non-API routes. Keep SPA fallback
+  as a 200 response with `ServeDir::fallback(ServeFile::new(index))`; do not use
+  `not_found_service` for `index.html`, because that returns 404 with HTML.
 
 ## Auth Notes
 
